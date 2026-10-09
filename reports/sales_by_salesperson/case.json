@@ -1,0 +1,14 @@
+{
+  "question": "Monthly sales by salesperson",
+  "key": [
+    "Salesperson"
+  ],
+  "params": {
+    "start_date": "2025-03-01",
+    "end_date": "2025-03-31"
+  },
+  "holdout_params": {
+    "start_date": "2025-04-01",
+    "end_date": "2025-04-30"
+  }
+}

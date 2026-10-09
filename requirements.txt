@@ -1,0 +1,9 @@
+pandas
+sqlalchemy
+pyodbc
+networkx
+fastembed
+google-genai
+python-dotenv
+pydantic
+sqlglot

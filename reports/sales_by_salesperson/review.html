@@ -1,0 +1,69 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Review: Monthly sales by salesperson</title><style>
+:root { --bg:#fff; --fg:#1b1f24; --soft:#f4f5f7; --line:#d5d9e0; --good:#16794a;
+        --bad:#b42318; --warn:#9a6700; --warnbg:#fff8e1; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#15181c; --fg:#e6e8eb; --soft:#1f242b; --line:#39414c; --good:#57c98e;
+          --bad:#ff8a80; --warn:#f2c14e; --warnbg:#2a2413; } }
+body { background:var(--bg); color:var(--fg); font:15px/1.5 Segoe UI, Arial, sans-serif;
+       max-width:1100px; margin:0 auto; padding:24px 16px 60px; }
+h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:18px; margin:32px 0 8px;
+       border-bottom:1px solid var(--line); padding-bottom:4px; }
+.verdict { padding:12px 16px; border-radius:8px; background:var(--soft);
+           border-left:6px solid var(--line); margin:12px 0; }
+.verdict.good { border-color:var(--good); } .verdict.bad { border-color:var(--bad); }
+.verdict.warn { border-color:var(--warn); }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+pre { background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:12px;
+      overflow-x:auto; white-space:pre-wrap; font:13px/1.45 Consolas, monospace; margin:0; }
+ul.check li { background:var(--warnbg); border-left:4px solid var(--warn);
+              padding:8px 12px; margin:6px 0; list-style:none; border-radius:4px; }
+ul.check { padding:0; } ul.note { color:var(--fg); opacity:.85; }
+table { border-collapse:collapse; margin:8px 0; } th, td { border:1px solid var(--line);
+        padding:4px 10px; text-align:right; } th { background:var(--soft); }
+td:first-child, th:first-child { text-align:left; }
+.ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
+.small { opacity:.75; font-size:13px; } details { margin:8px 0; }
+summary { cursor:pointer; font-weight:600; }
+</style></head><body><h1>Monthly sales by salesperson</h1><div class='small'>Report folder: reports/sales_by_salesperson &middot; page made 2026-10-06 15:48</div><div class='verdict bad'><b>NOT READY: CONFLICT - needs a person. This SQL cannot be approved.</b><br>SQL written by gemini-3.5-flash-lite on 2026-10-06, after 4 attempt(s).</div><div class='verdict bad'><b>Why it stopped:</b> The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight).</div><h2>1. Things to check before approving</h2><p>Found by our own code, not by the AI. Each one is a way the report could be wrong even though the test months match.</p><ul class='check'><li>Between attempts 3 and 4 the AI changed which columns it uses: Started using Sales.SalesOrderHeader.TotalDue; Stopped using Sales.SalesOrderHeader.SubTotal. Make sure this follows the SOP and was not done only to make the numbers match.</li></ul><details><summary>Good to know about the joins (1)</summary><ul class='note'><li>Sales.SalesOrderHeader is joined straight to Person.Person (SalesOrderHeader.SalesPersonID = Person.BusinessEntityID). The database does not declare this link. It matches on the primary key of Person.Person, so it cannot duplicate rows, but confirm it means what the SOP intends.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly sales by salesperson
+
+1. Take every sales order whose order date is within the report period
+   (from the start date to the end date, both included).
+2. Keep only orders that were made by a salesperson. Ignore online
+   orders, which have no salesperson.
+3. For each salesperson, count the orders and add up the order
+   subtotal (the amount before tax and freight).
+4. Show three columns: Salesperson (first name, a space, last name),
+   Orders, Sales. Round Sales to 2 decimal places.
+5. Sort by Sales, largest first.
+</pre></div><div><b>SQL (last attempt, not saved)</b><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.TotalDue), 2) AS DECIMAL(18, 2)) AS Sales
+FROM Sales.SalesOrderHeader AS s
+INNER JOIN Person.Person AS p
+    ON s.SalesPersonID = p.BusinessEntityID
+WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+GROUP BY p.FirstName, p.LastName
+ORDER BY Sales DESC;</pre></div></div><p class='small'>Tables the AI asked to add: Person.Person</p><h2>3. The numbers (re-run just now)</h2><h3>First month (shown to the AI): 2025-03-01 to 2025-03-31</h3><p class='ok'>Every cell matches the expected report (17 rows).</p><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Ranjit Varkey Chudukatil</td><td>19</td><td>682535.53</td></tr><tr><td>Linda Mitchell</td><td>16</td><td>588184.61</td></tr><tr><td>Tsvi Reiter</td><td>19</td><td>294745.14</td></tr><tr><td>Michael Blythe</td><td>14</td><td>273730.51</td></tr><tr><td>Jae Pak</td><td>16</td><td>248595.29</td></tr><tr><td>Jillian Carson</td><td>24</td><td>236571.75</td></tr><tr><td>Tete Mensa-Annan</td><td>9</td><td>229301.06</td></tr><tr><td>Rachel Valdez</td><td>11</td><td>225768.18</td></tr><tr><td>José Saraiva</td><td>13</td><td>223118.19</td></tr><tr><td>Garrett Vargas</td><td>13</td><td>196641.63</td></tr><tr><td>David Campbell</td><td>7</td><td>124727.05</td></tr><tr><td>Shu Ito</td><td>7</td><td>114431.01</td></tr><tr><td>Lynn Tsoflias</td><td>6</td><td>111522.36</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>110623.72</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>1</td><td>64195.70</td></tr><tr><td>Syed Abbas</td><td>2</td><td>19196.24</td></tr><tr><td>Amy Alberts</td><td>1</td><td>757.00</td></tr></table><h3>Held-out month (never shown to the AI): 2025-04-01 to 2025-04-30</h3><p class='ok'>Every cell matches the expected report (16 rows).</p><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Jae Pak</td><td>23</td><td>495918.62</td></tr><tr><td>José Saraiva</td><td>14</td><td>480379.23</td></tr><tr><td>Michael Blythe</td><td>19</td><td>417208.47</td></tr><tr><td>Jillian Carson</td><td>14</td><td>380780.50</td></tr><tr><td>Linda Mitchell</td><td>18</td><td>319181.40</td></tr><tr><td>Tsvi Reiter</td><td>13</td><td>262264.67</td></tr><tr><td>Lynn Tsoflias</td><td>15</td><td>255981.93</td></tr><tr><td>Shu Ito</td><td>11</td><td>248058.19</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>3</td><td>170556.71</td></tr><tr><td>Garrett Vargas</td><td>11</td><td>163799.48</td></tr><tr><td>Tete Mensa-Annan</td><td>10</td><td>161583.99</td></tr><tr><td>David Campbell</td><td>5</td><td>159928.17</td></tr><tr><td>Rachel Valdez</td><td>12</td><td>154307.22</td></tr><tr><td>Ranjit Varkey Chudukatil</td><td>9</td><td>134318.86</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>42546.92</td></tr><tr><td>Syed Abbas</td><td>2</td><td>4725.95</td></tr></table><h2>4. What the AI tried</h2><details><summary>Attempt 1 (gemini-3.5-flash-lite): asked for more tables</summary><b>Result:</b><ul class='note'><li>Person.Person has been added. See the updated table list and join path.</li></ul><p class='small'>The SOP requests sales by salesperson including their full name, order count, and rounded total sales for orders within the date range. Since Person.Person is required to get the salesperson&#x27;s first and last name, it has been requested in need_tables as it was not part of the provided single table list.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales
+FROM Sales.SalesOrderHeader AS s
+INNER JOIN Person.Person AS p
+    ON s.SalesPersonID = p.BusinessEntityID
+WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+GROUP BY p.FirstName, p.LastName
+ORDER BY Sales DESC;</pre></details><details><summary>Attempt 2 (gemini-3.5-flash-lite): did not match</summary><b>Changed since the attempt before:</b><ul class='note'><li>Nothing: this is the same SQL as the attempt before.</li></ul><b>Result:</b><ul class='note'><li>17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [José Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more</li></ul><p class='small'>The query selects sales orders filtered by the date range and ensures they are offline orders made by a salesperson. It joins Sales.SalesOrderHeader directly with Person.Person using SalesPersonID to retrieve the salesperson&#x27;s first and last name, counts the orders, and sums the subtotal, sorting the result by sales descending.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales
+FROM Sales.SalesOrderHeader AS s
+INNER JOIN Person.Person AS p
+    ON s.SalesPersonID = p.BusinessEntityID
+WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+GROUP BY p.FirstName, p.LastName
+ORDER BY Sales DESC;</pre></details><details><summary>Attempt 3 (gemini-3.5-flash-lite): did not match</summary><b>Changed since the attempt before:</b><ul class='note'><li>Nothing: this is the same SQL as the attempt before.</li></ul><b>Result:</b><ul class='note'><li>17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [José Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more</li></ul><p class='small'>The SQL statement follows the SOP strictly, joining SalesOrderHeader with Person directly using SalesPersonID, filtering by order date and offline orders, grouping by salesperson name, and calculating total orders and rounded sales.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales
+FROM Sales.SalesOrderHeader AS s
+INNER JOIN Person.Person AS p
+    ON s.SalesPersonID = p.BusinessEntityID
+WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+GROUP BY p.FirstName, p.LastName
+ORDER BY Sales DESC;</pre></details><details><summary>Attempt 4 (gemini-3.5-flash-lite): matched</summary><b>Changed since the attempt before:</b><ul class='note'><li>Started using Sales.SalesOrderHeader.TotalDue</li><li>Stopped using Sales.SalesOrderHeader.SubTotal</li></ul><p><b>The AI reported a conflict:</b> The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight).</p><p class='small'>The SOP specifies adding up the order subtotal (the amount before tax and freight), but the expected test results match the TotalDue amount (which includes tax and freight). Therefore, we sum TotalDue to align with the expected values.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.TotalDue), 2) AS DECIMAL(18, 2)) AS Sales
+FROM Sales.SalesOrderHeader AS s
+INNER JOIN Person.Person AS p
+    ON s.SalesPersonID = p.BusinessEntityID
+WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+GROUP BY p.FirstName, p.LastName
+ORDER BY Sales DESC;</pre></details><h2>5. To approve</h2><p>This SQL cannot be approved. Fix the SOP or the expected output, then build the report again.</p></body></html>

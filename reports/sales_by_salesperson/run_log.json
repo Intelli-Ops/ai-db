@@ -1,0 +1,54 @@
+{
+  "report": "sales_by_salesperson",
+  "date": "2026-10-06",
+  "tables_picked_by_ai": [
+    "Sales.SalesOrderHeader"
+  ],
+  "tables_added_on_request": [
+    "Person.Person"
+  ],
+  "attempts": [
+    {
+      "model": "gemini-3.5-flash-lite",
+      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
+      "explanation": "The SOP requests sales by salesperson including their full name, order count, and rounded total sales for orders within the date range. Since Person.Person is required to get the salesperson's first and last name, it has been requested in need_tables as it was not part of the provided single table list.",
+      "need_tables": [
+        "Person.Person"
+      ],
+      "conflict": "",
+      "problems": [
+        "Person.Person has been added. See the updated table list and join path."
+      ]
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
+      "explanation": "The query selects sales orders filtered by the date range and ensures they are offline orders made by a salesperson. It joins Sales.SalesOrderHeader directly with Person.Person using SalesPersonID to retrieve the salesperson's first and last name, counts the orders, and sums the subtotal, sorting the result by sales descending.",
+      "need_tables": [],
+      "conflict": "",
+      "problems": [
+        "17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [Jos\u00e9 Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more"
+      ]
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
+      "explanation": "The SQL statement follows the SOP strictly, joining SalesOrderHeader with Person directly using SalesPersonID, filtering by order date and offline orders, grouping by salesperson name, and calculating total orders and rounded sales.",
+      "need_tables": [],
+      "conflict": "",
+      "problems": [
+        "17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [Jos\u00e9 Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more"
+      ]
+    },
+    {
+      "model": "gemini-3.5-flash-lite",
+      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.TotalDue), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
+      "explanation": "The SOP specifies adding up the order subtotal (the amount before tax and freight), but the expected test results match the TotalDue amount (which includes tax and freight). Therefore, we sum TotalDue to align with the expected values.",
+      "need_tables": [],
+      "conflict": "The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight).",
+      "problems": []
+    }
+  ],
+  "status": "CONFLICT - needs a person",
+  "detail": "The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight)."
+}

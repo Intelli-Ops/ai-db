@@ -1,0 +1,9 @@
+Monthly sales by territory
+
+1. Take every sales order whose order date is within the report period
+   (from the start date to the end date, both included).
+2. For each sales territory, count the orders and add up the order
+   subtotal (the amount before tax and freight).
+3. Show three columns: Territory (the territory name), Orders, Sales.
+   Round Sales to 2 decimal places.
+4. Sort by Sales, largest first.

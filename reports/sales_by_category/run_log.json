@@ -1,0 +1,22 @@
+{
+  "report": "sales_by_category",
+  "date": "2026-10-06",
+  "tables_picked_by_ai": [
+    "Sales.SalesOrderDetail",
+    "Sales.SalesOrderHeader",
+    "Production.ProductCategory"
+  ],
+  "tables_added_on_request": [],
+  "attempts": [
+    {
+      "model": "gemini-3.5-flash",
+      "sql": "SELECT pc.Name AS [Category], SUM(sod.OrderQty) AS [Units], CAST(SUM(sod.LineTotal) AS DECIMAL(18,2)) AS [Sales] FROM Sales.SalesOrderHeader AS soh INNER JOIN Sales.SalesOrderDetail AS sod ON soh.SalesOrderID = sod.SalesOrderID INNER JOIN Production.Product AS p ON sod.ProductID = p.ProductID INNER JOIN Production.ProductSubcategory AS ps ON p.ProductSubcategoryID = ps.ProductSubcategoryID INNER JOIN Production.ProductCategory AS pc ON ps.ProductCategoryID = pc.ProductCategoryID WHERE soh.OrderDate >= @start_date AND soh.OrderDate <= @end_date GROUP BY pc.Name ORDER BY pc.Name ASC;",
+      "explanation": "The query starts from the SalesOrderHeader table, filtering orders within the specified date range. It then joins SalesOrderDetail to get the order details (quantity and line totals), Product to find the specific products, and ProductSubcategory and ProductCategory to get the category names. Finally, it aggregates the quantities and line totals (rounded to 2 decimal places using CAST to DECIMAL(18,2)) grouped by the category name, sorting the final report by category name from A to Z.",
+      "need_tables": [],
+      "conflict": "",
+      "problems": []
+    }
+  ],
+  "status": "PASSED - awaiting human review",
+  "holdout_problems": []
+}

@@ -1,0 +1,13 @@
+# Secrets: the Gemini API key lives here. Never commit it.
+.env
+
+# Python
+.venv/
+__pycache__/
+
+# Rebuilt automatically by schema_search.py
+schema_index.npy
+schema_index.json
+
+# Reports produced by run_report.py
+output/

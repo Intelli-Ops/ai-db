@@ -1,0 +1,55 @@
+<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'><title>Review: Monthly sales by territory</title><style>
+:root { --bg:#fff; --fg:#1b1f24; --soft:#f4f5f7; --line:#d5d9e0; --good:#16794a;
+        --bad:#b42318; --warn:#9a6700; --warnbg:#fff8e1; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#15181c; --fg:#e6e8eb; --soft:#1f242b; --line:#39414c; --good:#57c98e;
+          --bad:#ff8a80; --warn:#f2c14e; --warnbg:#2a2413; } }
+body { background:var(--bg); color:var(--fg); font:15px/1.5 Segoe UI, Arial, sans-serif;
+       max-width:1100px; margin:0 auto; padding:24px 16px 60px; }
+h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:18px; margin:32px 0 8px;
+       border-bottom:1px solid var(--line); padding-bottom:4px; }
+.verdict { padding:12px 16px; border-radius:8px; background:var(--soft);
+           border-left:6px solid var(--line); margin:12px 0; }
+.verdict.good { border-color:var(--good); } .verdict.bad { border-color:var(--bad); }
+.verdict.warn { border-color:var(--warn); }
+.cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+pre { background:var(--soft); border:1px solid var(--line); border-radius:6px; padding:12px;
+      overflow-x:auto; white-space:pre-wrap; font:13px/1.45 Consolas, monospace; margin:0; }
+ul.check li { background:var(--warnbg); border-left:4px solid var(--warn);
+              padding:8px 12px; margin:6px 0; list-style:none; border-radius:4px; }
+ul.check { padding:0; } ul.note { color:var(--fg); opacity:.85; }
+table { border-collapse:collapse; margin:8px 0; } th, td { border:1px solid var(--line);
+        padding:4px 10px; text-align:right; } th { background:var(--soft); }
+td:first-child, th:first-child { text-align:left; }
+.ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
+.small { opacity:.75; font-size:13px; } details { margin:8px 0; }
+summary { cursor:pointer; font-weight:600; }
+</style></head><body><h1>Monthly sales by territory</h1><div class='small'>Report folder: reports/sales_by_territory &middot; page made 2026-10-06 15:48</div><div class='verdict warn'><b>PASSED its tests. Waiting for a person to review and approve.</b><br>SQL written by gemini-3.5-flash-lite on 2026-10-06, after 1 attempt(s).</div><h2>1. Things to check before approving</h2><p class='ok'>Our checks found nothing that needs attention.</p><details><summary>Good to know about the joins (1)</summary><ul class='note'><li>Join Sales.SalesOrderHeader -&gt; Sales.SalesTerritory - MAY DROP ROWS: Sales.SalesOrderHeader rows where TerritoryID is empty are left out.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly sales by territory
+
+1. Take every sales order whose order date is within the report period
+   (from the start date to the end date, both included).
+2. For each sales territory, count the orders and add up the order
+   subtotal (the amount before tax and freight).
+3. Show three columns: Territory (the territory name), Orders, Sales.
+   Round Sales to 2 decimal places.
+4. Sort by Sales, largest first.
+</pre></div><div><b>SQL</b><pre>-- Report:     Monthly sales by territory
+-- Status:     PASSED - awaiting human review
+-- Tested on:  {&#x27;start_date&#x27;: &#x27;2025-03-01&#x27;, &#x27;end_date&#x27;: &#x27;2025-03-31&#x27;} and held-out {&#x27;start_date&#x27;: &#x27;2025-04-01&#x27;, &#x27;end_date&#x27;: &#x27;2025-04-30&#x27;}
+-- Written by: gemini-3.5-flash-lite on 2026-10-06, attempt 1 of 5
+-- Parameters: @start_date date, @end_date date
+-- Tables:     Sales.SalesOrderHeader, Sales.SalesTerritory
+SELECT T.Name AS Territory, COUNT(H.SalesOrderID) AS Orders, ROUND(SUM(H.SubTotal), 2) AS Sales
+FROM Sales.SalesOrderHeader AS H
+INNER JOIN Sales.SalesTerritory AS T
+    ON H.TerritoryID = T.TerritoryID
+WHERE H.OrderDate &gt;= @start_date AND H.OrderDate &lt; DATEADD(day, 1, @end_date)
+GROUP BY T.Name
+ORDER BY Sales DESC</pre></div></div><h2>3. The numbers (re-run just now)</h2><h3>First month (shown to the AI): 2025-03-01 to 2025-03-31</h3><p class='ok'>Every cell matches the expected report (10 rows).</p><table><tr><th>Territory</th><th>Orders</th><th>Sales</th></tr><tr><td>Southwest</td><td>467</td><td>904593.0300</td></tr><tr><td>France</td><td>210</td><td>770150.9700</td></tr><tr><td>Northwest</td><td>327</td><td>764651.8300</td></tr><tr><td>Australia</td><td>478</td><td>576172.4900</td></tr><tr><td>Canada</td><td>304</td><td>509015.6900</td></tr><tr><td>Germany</td><td>217</td><td>396192.4100</td></tr><tr><td>United Kingdom</td><td>243</td><td>385300.4900</td></tr><tr><td>Southeast</td><td>23</td><td>265875.4200</td></tr><tr><td>Central</td><td>16</td><td>249607.2500</td></tr><tr><td>Northeast</td><td>19</td><td>166341.9600</td></tr></table><h3>Held-out month (never shown to the AI): 2025-04-01 to 2025-04-30</h3><p class='ok'>Every cell matches the expected report (10 rows).</p><table><tr><th>Territory</th><th>Orders</th><th>Sales</th></tr><tr><td>Southwest</td><td>477</td><td>1004963.5300</td></tr><tr><td>Northwest</td><td>358</td><td>791969.1900</td></tr><tr><td>Canada</td><td>292</td><td>719801.2600</td></tr><tr><td>Australia</td><td>463</td><td>642917.6600</td></tr><tr><td>United Kingdom</td><td>236</td><td>636594.1100</td></tr><tr><td>Germany</td><td>222</td><td>340935.1600</td></tr><tr><td>Central</td><td>15</td><td>298183.6700</td></tr><tr><td>France</td><td>187</td><td>272268.1600</td></tr><tr><td>Southeast</td><td>16</td><td>272044.4800</td></tr><tr><td>Northeast</td><td>13</td><td>243081.5300</td></tr></table><h2>4. What the AI tried</h2><details><summary>Attempt 1 (gemini-3.5-flash-lite): matched</summary><p class='small'>Joined SalesOrderHeader and SalesTerritory on TerritoryID, filtered by order date within the given parameters (inclusive of end date by using less than the next day), counted the orders and summed the subtotal grouped by territory name, rounded to 2 decimal places, and sorted by sales in descending order.</p><pre>SELECT T.Name AS Territory, COUNT(H.SalesOrderID) AS Orders, ROUND(SUM(H.SubTotal), 2) AS Sales
+FROM Sales.SalesOrderHeader AS H
+INNER JOIN Sales.SalesTerritory AS T
+    ON H.TerritoryID = T.TerritoryID
+WHERE H.OrderDate &gt;= @start_date AND H.OrderDate &lt; DATEADD(day, 1, @end_date)
+GROUP BY T.Name
+ORDER BY Sales DESC</pre></details><h2>5. To approve</h2><pre>python review_report.py sales_by_territory --approve "Your Name"</pre></body></html>
