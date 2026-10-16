@@ -9,5 +9,9 @@ __pycache__/
 schema_index.npy
 schema_index.json
 
+# Rebuilt automatically by data_search.py
+data_index.npy
+data_index.json
+
 # Reports produced by run_report.py
 output/
