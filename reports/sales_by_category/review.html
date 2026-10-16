@@ -25,7 +25,7 @@ td:first-child, th:first-child { text-align:left; }
 .ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
 .small { opacity:.75; font-size:13px; } details { margin:8px 0; }
 summary { cursor:pointer; font-weight:600; }
-</style></head><body><h1>Monthly sales by product category</h1><div class='small'>Report folder: reports/sales_by_category &middot; page made 2026-10-06 15:48</div><div class='verdict warn'><b>PASSED its tests. Waiting for a person to review and approve.</b><br>SQL written by gemini-3.5-flash on 2026-10-06, after 1 attempt(s).</div><h2>1. Things to check before approving</h2><p>Found by our own code, not by the AI. Each one is a way the report could be wrong even though the test months match.</p><ul class='check'><li>Date filter: OrderDate is compared with &#x27;&lt;= @end_date&#x27; (or BETWEEN). OrderDate holds a date AND a time, so rows with a time during the last day are left out. Safer: OrderDate &lt; DATEADD(day, 1, @end_date).</li></ul><details><summary>Good to know about the joins (4)</summary><ul class='note'><li>Join Sales.SalesOrderHeader -&gt; Sales.SalesOrderDetail - MULTIPLIES ROWS: one Sales.SalesOrderHeader row can match many Sales.SalesOrderDetail rows, so values from Sales.SalesOrderHeader (and tables joined before it) repeat. Do not sum them after this join.</li><li>Join Sales.SalesOrderHeader -&gt; Sales.SalesOrderDetail - MAY DROP ROWS: Sales.SalesOrderHeader rows with no matching Sales.SalesOrderDetail row are left out.</li><li>Sales.SalesOrderDetail is joined straight to Production.Product (SalesOrderDetail.ProductID = Product.ProductID). The database does not declare this link. It matches on the primary key of Production.Product, so it cannot duplicate rows, but confirm it means what the SOP intends.</li><li>Join Production.Product -&gt; Production.ProductSubcategory - MAY DROP ROWS: Production.Product rows where ProductSubcategoryID is empty are left out.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly sales by product category
+</style></head><body><h1>Monthly sales by product category</h1><div class='small'>Report folder: reports/sales_by_category &middot; page made 2026-10-16 15:29</div><div class='verdict warn'><b>PASSED its tests. Waiting for a person to review and approve.</b><br>SQL written by nvidia/nemotron-3-ultra-550b-a55b on 2026-10-16, after 1 attempt(s).</div><h2>1. Things to check before approving</h2><p class='ok'>Our checks found nothing that needs attention.</p><details><summary>Good to know about the joins (2)</summary><ul class='note'><li>Sales.SalesOrderDetail is joined straight to Production.Product (SalesOrderDetail.ProductID = Product.ProductID). The database does not declare this link. It matches on the primary key of Production.Product, so it cannot duplicate rows, but confirm it means what the SOP intends.</li><li>Join Production.Product -&gt; Production.ProductSubcategory - MAY DROP ROWS: Production.Product rows where ProductSubcategoryID is empty are left out.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly sales by product category
 
 1. Take every sales order whose order date is within the report period
    (from the start date to the end date, both included).
@@ -39,31 +39,47 @@ summary { cursor:pointer; font-weight:600; }
 </pre></div><div><b>SQL</b><pre>-- Report:     Monthly sales by product category
 -- Status:     PASSED - awaiting human review
 -- Tested on:  {&#x27;start_date&#x27;: &#x27;2025-03-01&#x27;, &#x27;end_date&#x27;: &#x27;2025-03-31&#x27;} and held-out {&#x27;start_date&#x27;: &#x27;2025-04-01&#x27;, &#x27;end_date&#x27;: &#x27;2025-04-30&#x27;}
--- Written by: gemini-3.5-flash on 2026-10-06, attempt 1 of 5
+-- Written by: nvidia/nemotron-3-ultra-550b-a55b on 2026-10-16, attempt 1 of 2
 -- Parameters: @start_date date, @end_date date
 -- Tables:     Production.Product, Production.ProductCategory, Production.ProductSubcategory, Sales.SalesOrderDetail, Sales.SalesOrderHeader, Sales.SpecialOfferProduct
-SELECT pc.Name AS [Category], SUM(sod.OrderQty) AS [Units], CAST(SUM(sod.LineTotal) AS DECIMAL(18,2)) AS [Sales]
-FROM Sales.SalesOrderHeader AS soh
-INNER JOIN Sales.SalesOrderDetail AS sod
-    ON soh.SalesOrderID = sod.SalesOrderID
-INNER JOIN Production.Product AS p
+WITH FilteredOrders AS (
+SELECT SalesOrderID
+FROM Sales.SalesOrderHeader
+WHERE OrderDate &gt;= @start_date
+AND OrderDate &lt; DATEADD(day, 1, @end_date)
+)
+SELECT
+pc.Name AS Category,
+SUM(sod.OrderQty) AS Units,
+ROUND(SUM(sod.LineTotal), 2) AS Sales
+FROM Sales.SalesOrderDetail sod
+JOIN FilteredOrders fo
+    ON sod.SalesOrderID = fo.SalesOrderID
+JOIN Production.Product p
     ON sod.ProductID = p.ProductID
-INNER JOIN Production.ProductSubcategory AS ps
-    ON p.ProductSubcategoryID = ps.ProductSubcategoryID
-INNER JOIN Production.ProductCategory AS pc
-    ON ps.ProductCategoryID = pc.ProductCategoryID
-WHERE soh.OrderDate &gt;= @start_date AND soh.OrderDate &lt;= @end_date
+JOIN Production.ProductSubcategory psc
+    ON p.ProductSubcategoryID = psc.ProductSubcategoryID
+JOIN Production.ProductCategory pc
+    ON psc.ProductCategoryID = pc.ProductCategoryID
 GROUP BY pc.Name
-ORDER BY pc.Name ASC;</pre></div></div><h2>3. The numbers (re-run just now)</h2><h3>First month (shown to the AI): 2025-03-01 to 2025-03-31</h3><p class='ok'>Every cell matches the expected report (4 rows).</p><table><tr><th>Category</th><th>Units</th><th>Sales</th></tr><tr><td>Accessories</td><td>5005</td><td>106383.08</td></tr><tr><td>Bikes</td><td>4116</td><td>4233511.44</td></tr><tr><td>Clothing</td><td>3977</td><td>118316.97</td></tr><tr><td>Components</td><td>2344</td><td>529690.04</td></tr></table><h3>Held-out month (never shown to the AI): 2025-04-01 to 2025-04-30</h3><p class='ok'>Every cell matches the expected report (4 rows).</p><table><tr><th>Category</th><th>Units</th><th>Sales</th></tr><tr><td>Accessories</td><td>4923</td><td>106831.02</td></tr><tr><td>Bikes</td><td>4225</td><td>4423689.58</td></tr><tr><td>Clothing</td><td>3836</td><td>114385.78</td></tr><tr><td>Components</td><td>2555</td><td>577852.35</td></tr></table><h2>4. What the AI tried</h2><details><summary>Attempt 1 (gemini-3.5-flash): matched</summary><p class='small'>The query starts from the SalesOrderHeader table, filtering orders within the specified date range. It then joins SalesOrderDetail to get the order details (quantity and line totals), Product to find the specific products, and ProductSubcategory and ProductCategory to get the category names. Finally, it aggregates the quantities and line totals (rounded to 2 decimal places using CAST to DECIMAL(18,2)) grouped by the category name, sorting the final report by category name from A to Z.</p><pre>SELECT pc.Name AS [Category], SUM(sod.OrderQty) AS [Units], CAST(SUM(sod.LineTotal) AS DECIMAL(18,2)) AS [Sales]
-FROM Sales.SalesOrderHeader AS soh
-INNER JOIN Sales.SalesOrderDetail AS sod
-    ON soh.SalesOrderID = sod.SalesOrderID
-INNER JOIN Production.Product AS p
+ORDER BY pc.Name;</pre></div></div><h2>3. The numbers (re-run just now)</h2><h3>First month (shown to the AI): 2025-03-01 to 2025-03-31</h3><p class='ok'>Every cell matches the expected report (4 rows).</p><table><tr><th>Category</th><th>Units</th><th>Sales</th></tr><tr><td>Accessories</td><td>5005</td><td>106383.080000</td></tr><tr><td>Bikes</td><td>4116</td><td>4233511.440000</td></tr><tr><td>Clothing</td><td>3977</td><td>118316.970000</td></tr><tr><td>Components</td><td>2344</td><td>529690.040000</td></tr></table><h3>Held-out month (never shown to the AI): 2025-04-01 to 2025-04-30</h3><p class='ok'>Every cell matches the expected report (4 rows).</p><table><tr><th>Category</th><th>Units</th><th>Sales</th></tr><tr><td>Accessories</td><td>4923</td><td>106831.020000</td></tr><tr><td>Bikes</td><td>4225</td><td>4423689.580000</td></tr><tr><td>Clothing</td><td>3836</td><td>114385.780000</td></tr><tr><td>Components</td><td>2555</td><td>577852.350000</td></tr></table><h2>4. What the AI tried</h2><details><summary>Attempt 1 (nvidia/nemotron-3-ultra-550b-a55b): matched</summary><p class='small'>The query first filters SalesOrderHeader to get SalesOrderIDs within the inclusive date range using a CTE. It then joins SalesOrderDetail to these orders, and traverses Product -&gt; ProductSubcategory -&gt; ProductCategory to get the category name. Aggregation sums OrderQty and LineTotal per category, with Sales rounded to 2 decimals. Results are ordered by Category name.</p><pre>WITH FilteredOrders AS (
+SELECT SalesOrderID
+FROM Sales.SalesOrderHeader
+WHERE OrderDate &gt;= @start_date
+AND OrderDate &lt; DATEADD(day, 1, @end_date)
+)
+SELECT
+pc.Name AS Category,
+SUM(sod.OrderQty) AS Units,
+ROUND(SUM(sod.LineTotal), 2) AS Sales
+FROM Sales.SalesOrderDetail sod
+JOIN FilteredOrders fo
+    ON sod.SalesOrderID = fo.SalesOrderID
+JOIN Production.Product p
     ON sod.ProductID = p.ProductID
-INNER JOIN Production.ProductSubcategory AS ps
-    ON p.ProductSubcategoryID = ps.ProductSubcategoryID
-INNER JOIN Production.ProductCategory AS pc
-    ON ps.ProductCategoryID = pc.ProductCategoryID
-WHERE soh.OrderDate &gt;= @start_date AND soh.OrderDate &lt;= @end_date
+JOIN Production.ProductSubcategory psc
+    ON p.ProductSubcategoryID = psc.ProductSubcategoryID
+JOIN Production.ProductCategory pc
+    ON psc.ProductCategoryID = pc.ProductCategoryID
 GROUP BY pc.Name
-ORDER BY pc.Name ASC;</pre></details><h2>5. To approve</h2><pre>python review_report.py sales_by_category --approve "Your Name"</pre></body></html>
+ORDER BY pc.Name;</pre></details><h2>5. To approve</h2><pre>python review_report.py sales_by_category --approve "Your Name"</pre></body></html>

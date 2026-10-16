@@ -1,4 +1,4 @@
-# Secrets: the Gemini API key lives here. Never commit it.
+# Secrets: the AI API key lives here. Never commit it.
 .env
 
 # Python

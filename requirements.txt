@@ -3,7 +3,7 @@ sqlalchemy
 pyodbc
 networkx
 fastembed
-google-genai
+httpx
 python-dotenv
 pydantic
 sqlglot

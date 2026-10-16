@@ -1,19 +1,22 @@
 {
   "report": "sales_by_category",
-  "date": "2026-10-06",
+  "date": "2026-10-16",
   "tables_picked_by_ai": [
     "Sales.SalesOrderDetail",
     "Sales.SalesOrderHeader",
+    "Production.Product",
+    "Production.ProductSubcategory",
     "Production.ProductCategory"
   ],
   "tables_added_on_request": [],
   "attempts": [
     {
-      "model": "gemini-3.5-flash",
-      "sql": "SELECT pc.Name AS [Category], SUM(sod.OrderQty) AS [Units], CAST(SUM(sod.LineTotal) AS DECIMAL(18,2)) AS [Sales] FROM Sales.SalesOrderHeader AS soh INNER JOIN Sales.SalesOrderDetail AS sod ON soh.SalesOrderID = sod.SalesOrderID INNER JOIN Production.Product AS p ON sod.ProductID = p.ProductID INNER JOIN Production.ProductSubcategory AS ps ON p.ProductSubcategoryID = ps.ProductSubcategoryID INNER JOIN Production.ProductCategory AS pc ON ps.ProductCategoryID = pc.ProductCategoryID WHERE soh.OrderDate >= @start_date AND soh.OrderDate <= @end_date GROUP BY pc.Name ORDER BY pc.Name ASC;",
-      "explanation": "The query starts from the SalesOrderHeader table, filtering orders within the specified date range. It then joins SalesOrderDetail to get the order details (quantity and line totals), Product to find the specific products, and ProductSubcategory and ProductCategory to get the category names. Finally, it aggregates the quantities and line totals (rounded to 2 decimal places using CAST to DECIMAL(18,2)) grouped by the category name, sorting the final report by category name from A to Z.",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "sql": "WITH FilteredOrders AS (\n    SELECT SalesOrderID\n    FROM Sales.SalesOrderHeader\n    WHERE OrderDate >= @start_date\n      AND OrderDate < DATEADD(day, 1, @end_date)\n)\nSELECT \n    pc.Name AS Category,\n    SUM(sod.OrderQty) AS Units,\n    ROUND(SUM(sod.LineTotal), 2) AS Sales\nFROM Sales.SalesOrderDetail sod\nJOIN FilteredOrders fo ON sod.SalesOrderID = fo.SalesOrderID\nJOIN Production.Product p ON sod.ProductID = p.ProductID\nJOIN Production.ProductSubcategory psc ON p.ProductSubcategoryID = psc.ProductSubcategoryID\nJOIN Production.ProductCategory pc ON psc.ProductCategoryID = pc.ProductCategoryID\nGROUP BY pc.Name\nORDER BY pc.Name;",
+      "explanation": "The query first filters SalesOrderHeader to get SalesOrderIDs within the inclusive date range using a CTE. It then joins SalesOrderDetail to these orders, and traverses Product -> ProductSubcategory -> ProductCategory to get the category name. Aggregation sums OrderQty and LineTotal per category, with Sales rounded to 2 decimals. Results are ordered by Category name.",
       "need_tables": [],
       "conflict": "",
+      "tested": true,
       "problems": []
     }
   ],

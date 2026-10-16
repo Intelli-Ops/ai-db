@@ -1,7 +1,23 @@
 -- Report:     Monthly sales by product category
 -- Status:     PASSED - awaiting human review
 -- Tested on:  {'start_date': '2025-03-01', 'end_date': '2025-03-31'} and held-out {'start_date': '2025-04-01', 'end_date': '2025-04-30'}
--- Written by: gemini-3.5-flash on 2026-10-06, attempt 1 of 5
+-- Written by: nvidia/nemotron-3-ultra-550b-a55b on 2026-10-16, attempt 1 of 2
 -- Parameters: @start_date date, @end_date date
 -- Tables:     Production.Product, Production.ProductCategory, Production.ProductSubcategory, Sales.SalesOrderDetail, Sales.SalesOrderHeader, Sales.SpecialOfferProduct
-SELECT pc.Name AS [Category], SUM(sod.OrderQty) AS [Units], CAST(SUM(sod.LineTotal) AS DECIMAL(18,2)) AS [Sales] FROM Sales.SalesOrderHeader AS soh INNER JOIN Sales.SalesOrderDetail AS sod ON soh.SalesOrderID = sod.SalesOrderID INNER JOIN Production.Product AS p ON sod.ProductID = p.ProductID INNER JOIN Production.ProductSubcategory AS ps ON p.ProductSubcategoryID = ps.ProductSubcategoryID INNER JOIN Production.ProductCategory AS pc ON ps.ProductCategoryID = pc.ProductCategoryID WHERE soh.OrderDate >= @start_date AND soh.OrderDate <= @end_date GROUP BY pc.Name ORDER BY pc.Name ASC;
+WITH FilteredOrders AS (
+    SELECT SalesOrderID
+    FROM Sales.SalesOrderHeader
+    WHERE OrderDate >= @start_date
+      AND OrderDate < DATEADD(day, 1, @end_date)
+)
+SELECT 
+    pc.Name AS Category,
+    SUM(sod.OrderQty) AS Units,
+    ROUND(SUM(sod.LineTotal), 2) AS Sales
+FROM Sales.SalesOrderDetail sod
+JOIN FilteredOrders fo ON sod.SalesOrderID = fo.SalesOrderID
+JOIN Production.Product p ON sod.ProductID = p.ProductID
+JOIN Production.ProductSubcategory psc ON p.ProductSubcategoryID = psc.ProductSubcategoryID
+JOIN Production.ProductCategory pc ON psc.ProductCategoryID = pc.ProductCategoryID
+GROUP BY pc.Name
+ORDER BY pc.Name;
