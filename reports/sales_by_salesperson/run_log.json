@@ -1,17 +1,144 @@
 {
   "report": "sales_by_salesperson",
-  "date": "2026-10-06",
+  "date": "2026-10-18",
   "tables_picked_by_ai": [
-    "Sales.SalesOrderHeader"
+    "Sales.SalesOrderHeader",
+    "Sales.SalesPerson",
+    "HumanResources.Employee"
   ],
   "tables_added_on_request": [
     "Person.Person"
   ],
+  "values_found": [
+    {
+      "table": "Production.TransactionHistoryArchive",
+      "column": "TransactionType",
+      "value": "S",
+      "meaning": "Sales Order",
+      "score": 0.8265518546104431
+    },
+    {
+      "table": "HumanResources.Employee",
+      "column": "JobTitle",
+      "value": "Sales Representative",
+      "meaning": null,
+      "score": 0.8118695020675659
+    },
+    {
+      "table": "HumanResources.Employee",
+      "column": "JobTitle",
+      "value": "Buyer",
+      "meaning": null,
+      "score": 0.8094432353973389
+    },
+    {
+      "table": "HumanResources.Department",
+      "column": "Name",
+      "value": "Sales",
+      "meaning": null,
+      "score": 0.8025237321853638
+    },
+    {
+      "table": "Sales.SalesOrderHeader",
+      "column": "Status",
+      "value": 5,
+      "meaning": "Shipped",
+      "score": 0.7775631546974182
+    },
+    {
+      "table": "Production.TransactionHistory",
+      "column": "TransactionType",
+      "value": "S",
+      "meaning": "SalesOrder",
+      "score": 0.7760651111602783
+    },
+    {
+      "table": "Sales.SalesOrderHeader",
+      "column": "OnlineOrderFlag",
+      "value": 1,
+      "meaning": "Order placed online by customer",
+      "score": 0.7729974389076233
+    },
+    {
+      "table": "Person.ContactType",
+      "column": "Name",
+      "value": "Sales Agent",
+      "meaning": null,
+      "score": 0.7704241275787354
+    },
+    {
+      "table": "Sales.SalesOrderHeader",
+      "column": "Status",
+      "value": 3,
+      "meaning": "Backordered",
+      "score": 0.7394068241119385
+    },
+    {
+      "table": "Sales.Store",
+      "column": "Name",
+      "value": "Latest Accessories Sales",
+      "meaning": null,
+      "score": 0.7381226420402527
+    },
+    {
+      "table": "HumanResources.Department",
+      "column": "GroupName",
+      "value": "Sales and Marketing",
+      "meaning": null,
+      "score": 0.7269518971443176
+    },
+    {
+      "table": "Sales.Store",
+      "column": "Name",
+      "value": "First Supplies",
+      "meaning": null,
+      "score": 0.7152831554412842
+    },
+    {
+      "table": "Sales.Store",
+      "column": "Name",
+      "value": "First Department Stores",
+      "meaning": null,
+      "score": 0.706928014755249
+    },
+    {
+      "table": "Sales.Store",
+      "column": "Name",
+      "value": "Consolidated Sales",
+      "meaning": null,
+      "score": 0.6839898228645325
+    },
+    {
+      "table": "HumanResources.EmployeePayHistory",
+      "column": "PayFrequency",
+      "value": 1,
+      "meaning": "Salary received monthly",
+      "score": 0.6258220672607422
+    },
+    {
+      "table": "Production.ProductInventory",
+      "column": "Shelf",
+      "value": "Y",
+      "meaning": null,
+      "score": 0.6020917892456055
+    }
+  ],
   "attempts": [
     {
-      "model": "gemini-3.5-flash-lite",
-      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
-      "explanation": "The SOP requests sales by salesperson including their full name, order count, and rounded total sales for orders within the date range. Since Person.Person is required to get the salesperson's first and last name, it has been requested in need_tables as it was not part of the provided single table list.",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "sql": "WITH FilteredOrders AS (\n    SELECT \n        soh.SalesPersonID,\n        soh.SubTotal\n    FROM Sales.SalesOrderHeader soh\n    WHERE soh.OrderDate >= @start_date\n      AND soh.OrderDate <= @end_date\n      AND soh.OnlineOrderFlag = 0\n      AND soh.SalesPersonID IS NOT NULL\n)\nSELECT \n    e.FirstName + ' ' + e.LastName AS Salesperson,\n    COUNT(*) AS Orders,\n    ROUND(SUM(fo.SubTotal), 2) AS Sales\nFROM FilteredOrders fo\nJOIN Sales.SalesPerson sp ON fo.SalesPersonID = sp.BusinessEntityID\nJOIN HumanResources.Employee e ON sp.BusinessEntityID = e.BusinessEntityID\nGROUP BY e.FirstName, e.LastName\nORDER BY Sales DESC;",
+      "explanation": "The query uses a CTE to filter SalesOrderHeader for the date range, exclude online orders (OnlineOrderFlag = 0), and ensure a salesperson is assigned. It then joins to SalesPerson and Employee to get the salesperson's name. Aggregation counts orders and sums SubTotal per salesperson, rounding to 2 decimals. Results are sorted by Sales descending.",
+      "need_tables": [],
+      "conflict": "",
+      "tested": true,
+      "problems": [
+        "The database returned an error: (pyodbc.ProgrammingError) ('42S22', \"[42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name 'FirstName'. (207) (SQLExecDirectW); [42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name 'LastName'. (207); [42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name 'FirstName'. (207); [42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name 'LastName'. (207); [42S22] [Microsoft][ODBC Driver 18 for S"
+      ]
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "sql": "WITH FilteredOrders AS (\n    SELECT \n        soh.SalesPersonID,\n        soh.SubTotal\n    FROM Sales.SalesOrderHeader soh\n    WHERE soh.OrderDate >= @start_date\n      AND soh.OrderDate <= @end_date\n      AND soh.OnlineOrderFlag = 0\n      AND soh.SalesPersonID IS NOT NULL\n)\nSELECT \n    p.FirstName + ' ' + p.LastName AS Salesperson,\n    COUNT(*) AS Orders,\n    ROUND(SUM(fo.SubTotal), 2) AS Sales\nFROM FilteredOrders fo\nJOIN Sales.SalesPerson sp ON fo.SalesPersonID = sp.BusinessEntityID\nJOIN HumanResources.Employee e ON sp.BusinessEntityID = e.BusinessEntityID\nJOIN Person.Person p ON e.BusinessEntityID = p.BusinessEntityID\nGROUP BY p.FirstName, p.LastName\nORDER BY Sales DESC;",
+      "explanation": "The error occurred because FirstName and LastName columns are in the Person.Person table, not HumanResources.Employee. The Employee table only contains employment-related data. The fix adds a join to Person.Person using BusinessEntityID to access the name columns, then uses p.FirstName and p.LastName in the SELECT and GROUP BY clauses.",
       "need_tables": [
         "Person.Person"
       ],
@@ -21,34 +148,22 @@
       ]
     },
     {
-      "model": "gemini-3.5-flash-lite",
-      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
-      "explanation": "The query selects sales orders filtered by the date range and ensures they are offline orders made by a salesperson. It joins Sales.SalesOrderHeader directly with Person.Person using SalesPersonID to retrieve the salesperson's first and last name, counts the orders, and sums the subtotal, sorting the result by sales descending.",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "sql": "WITH FilteredOrders AS (\n    SELECT \n        soh.SalesPersonID,\n        soh.SubTotal\n    FROM Sales.SalesOrderHeader soh\n    WHERE soh.OrderDate >= @start_date\n      AND soh.OrderDate <= @end_date\n      AND soh.OnlineOrderFlag = 0\n      AND soh.SalesPersonID IS NOT NULL\n)\nSELECT \n    p.FirstName + ' ' + p.LastName AS Salesperson,\n    COUNT(*) AS Orders,\n    ROUND(SUM(fo.SubTotal), 2) AS Sales\nFROM FilteredOrders fo\nJOIN Sales.SalesPerson sp ON fo.SalesPersonID = sp.BusinessEntityID\nJOIN HumanResources.Employee e ON sp.BusinessEntityID = e.BusinessEntityID\nJOIN Person.Person p ON e.BusinessEntityID = p.BusinessEntityID\nGROUP BY p.FirstName, p.LastName\nORDER BY Sales DESC;",
+      "explanation": "The previous attempt failed because FirstName and LastName columns exist in Person.Person, not HumanResources.Employee. The corrected query joins Sales.SalesPerson -> HumanResources.Employee -> Person.Person to access the salesperson's name. The logic follows the SOP: filters orders by date range and OnlineOrderFlag=0 (excluding online orders), ensures SalesPersonID is not null, aggregates by salesperson, and sorts by Sales descending.",
       "need_tables": [],
       "conflict": "",
+      "tested": true,
       "problems": [
         "17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [Jos\u00e9 Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more"
       ]
-    },
-    {
-      "model": "gemini-3.5-flash-lite",
-      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
-      "explanation": "The SQL statement follows the SOP strictly, joining SalesOrderHeader with Person directly using SalesPersonID, filtering by order date and offline orders, grouping by salesperson name, and calculating total orders and rounded sales.",
-      "need_tables": [],
-      "conflict": "",
-      "problems": [
-        "17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [Jos\u00e9 Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more"
-      ]
-    },
-    {
-      "model": "gemini-3.5-flash-lite",
-      "sql": "SELECT CONCAT(p.FirstName, ' ', p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.TotalDue), 2) AS DECIMAL(18, 2)) AS Sales FROM Sales.SalesOrderHeader AS s INNER JOIN Person.Person AS p ON s.SalesPersonID = p.BusinessEntityID WHERE s.OrderDate >= @start_date AND s.OrderDate < DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL GROUP BY p.FirstName, p.LastName ORDER BY Sales DESC;",
-      "explanation": "The SOP specifies adding up the order subtotal (the amount before tax and freight), but the expected test results match the TotalDue amount (which includes tax and freight). Therefore, we sum TotalDue to align with the expected values.",
-      "need_tables": [],
-      "conflict": "The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight).",
-      "problems": []
     }
   ],
-  "status": "CONFLICT - needs a person",
-  "detail": "The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight)."
+  "status": "FAILED - no match after 3 attempts",
+  "filters": [
+    {
+      "words": "Ignore online orders, which have no salesperson",
+      "value": "Sales.SalesOrderHeader.[OnlineOrderFlag] = 1   (Order placed online by customer)"
+    }
+  ]
 }

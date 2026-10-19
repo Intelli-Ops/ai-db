@@ -25,7 +25,7 @@ td:first-child, th:first-child { text-align:left; }
 .ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
 .small { opacity:.75; font-size:13px; } details { margin:8px 0; }
 summary { cursor:pointer; font-weight:600; }
-</style></head><body><h1>Monthly sales by salesperson</h1><div class='small'>Report folder: reports/sales_by_salesperson &middot; page made 2026-10-06 15:48</div><div class='verdict bad'><b>NOT READY: CONFLICT - needs a person. This SQL cannot be approved.</b><br>SQL written by gemini-3.5-flash-lite on 2026-10-06, after 4 attempt(s).</div><div class='verdict bad'><b>Why it stopped:</b> The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight).</div><h2>1. Things to check before approving</h2><p>Found by our own code, not by the AI. Each one is a way the report could be wrong even though the test months match.</p><ul class='check'><li>Between attempts 3 and 4 the AI changed which columns it uses: Started using Sales.SalesOrderHeader.TotalDue; Stopped using Sales.SalesOrderHeader.SubTotal. Make sure this follows the SOP and was not done only to make the numbers match.</li></ul><details><summary>Good to know about the joins (1)</summary><ul class='note'><li>Sales.SalesOrderHeader is joined straight to Person.Person (SalesOrderHeader.SalesPersonID = Person.BusinessEntityID). The database does not declare this link. It matches on the primary key of Person.Person, so it cannot duplicate rows, but confirm it means what the SOP intends.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly sales by salesperson
+</style></head><body><h1>Monthly sales by salesperson</h1><div class='small'>Report folder: reports/sales_by_salesperson &middot; page made 2026-10-18 23:52</div><div class='verdict bad'><b>NOT READY: FAILED - no match after 3 attempts. This SQL cannot be approved.</b><br>SQL written by nvidia/nemotron-3-ultra-550b-a55b on 2026-10-18, after 3 attempt(s).</div><h2>1. Things to check before approving</h2><p>Found by our own code, not by the AI. Each one is a way the report could be wrong even though the test months match.</p><ul class='check'><li>Date filter: OrderDate is compared with &#x27;&lt;= @end_date&#x27; (or BETWEEN). OrderDate holds a date AND a time, so rows with a time during the last day are left out. Safer: OrderDate &lt; DATEADD(day, 1, @end_date).</li><li>Between attempts 1 and 2 the AI changed which columns it uses: Started using Person.Person.BusinessEntityID; Started using Person.Person.FirstName; Started using Person.Person.LastName. Make sure this follows the SOP and was not done only to make the numbers match.</li></ul><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly sales by salesperson
 
 1. Take every sales order whose order date is within the report period
    (from the start date to the end date, both included).
@@ -36,34 +36,90 @@ summary { cursor:pointer; font-weight:600; }
 4. Show three columns: Salesperson (first name, a space, last name),
    Orders, Sales. Round Sales to 2 decimal places.
 5. Sort by Sales, largest first.
-</pre></div><div><b>SQL (last attempt, not saved)</b><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.TotalDue), 2) AS DECIMAL(18, 2)) AS Sales
-FROM Sales.SalesOrderHeader AS s
-INNER JOIN Person.Person AS p
-    ON s.SalesPersonID = p.BusinessEntityID
-WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+</pre></div><div><b>SQL (last attempt, not saved)</b><pre>WITH FilteredOrders AS (
+SELECT
+soh.SalesPersonID,
+soh.SubTotal
+FROM Sales.SalesOrderHeader soh
+WHERE soh.OrderDate &gt;= @start_date
+AND soh.OrderDate &lt;= @end_date
+AND soh.OnlineOrderFlag = 0
+AND soh.SalesPersonID IS NOT NULL
+)
+SELECT
+p.FirstName + &#x27; &#x27; + p.LastName AS Salesperson,
+COUNT(*) AS Orders,
+ROUND(SUM(fo.SubTotal), 2) AS Sales
+FROM FilteredOrders fo
+JOIN Sales.SalesPerson sp
+    ON fo.SalesPersonID = sp.BusinessEntityID
+JOIN HumanResources.Employee e
+    ON sp.BusinessEntityID = e.BusinessEntityID
+JOIN Person.Person p
+    ON e.BusinessEntityID = p.BusinessEntityID
 GROUP BY p.FirstName, p.LastName
-ORDER BY Sales DESC;</pre></div></div><p class='small'>Tables the AI asked to add: Person.Person</p><h2>3. The numbers (re-run just now)</h2><h3>First month (shown to the AI): 2025-03-01 to 2025-03-31</h3><p class='ok'>Every cell matches the expected report (17 rows).</p><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Ranjit Varkey Chudukatil</td><td>19</td><td>682535.53</td></tr><tr><td>Linda Mitchell</td><td>16</td><td>588184.61</td></tr><tr><td>Tsvi Reiter</td><td>19</td><td>294745.14</td></tr><tr><td>Michael Blythe</td><td>14</td><td>273730.51</td></tr><tr><td>Jae Pak</td><td>16</td><td>248595.29</td></tr><tr><td>Jillian Carson</td><td>24</td><td>236571.75</td></tr><tr><td>Tete Mensa-Annan</td><td>9</td><td>229301.06</td></tr><tr><td>Rachel Valdez</td><td>11</td><td>225768.18</td></tr><tr><td>José Saraiva</td><td>13</td><td>223118.19</td></tr><tr><td>Garrett Vargas</td><td>13</td><td>196641.63</td></tr><tr><td>David Campbell</td><td>7</td><td>124727.05</td></tr><tr><td>Shu Ito</td><td>7</td><td>114431.01</td></tr><tr><td>Lynn Tsoflias</td><td>6</td><td>111522.36</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>110623.72</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>1</td><td>64195.70</td></tr><tr><td>Syed Abbas</td><td>2</td><td>19196.24</td></tr><tr><td>Amy Alberts</td><td>1</td><td>757.00</td></tr></table><h3>Held-out month (never shown to the AI): 2025-04-01 to 2025-04-30</h3><p class='ok'>Every cell matches the expected report (16 rows).</p><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Jae Pak</td><td>23</td><td>495918.62</td></tr><tr><td>José Saraiva</td><td>14</td><td>480379.23</td></tr><tr><td>Michael Blythe</td><td>19</td><td>417208.47</td></tr><tr><td>Jillian Carson</td><td>14</td><td>380780.50</td></tr><tr><td>Linda Mitchell</td><td>18</td><td>319181.40</td></tr><tr><td>Tsvi Reiter</td><td>13</td><td>262264.67</td></tr><tr><td>Lynn Tsoflias</td><td>15</td><td>255981.93</td></tr><tr><td>Shu Ito</td><td>11</td><td>248058.19</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>3</td><td>170556.71</td></tr><tr><td>Garrett Vargas</td><td>11</td><td>163799.48</td></tr><tr><td>Tete Mensa-Annan</td><td>10</td><td>161583.99</td></tr><tr><td>David Campbell</td><td>5</td><td>159928.17</td></tr><tr><td>Rachel Valdez</td><td>12</td><td>154307.22</td></tr><tr><td>Ranjit Varkey Chudukatil</td><td>9</td><td>134318.86</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>42546.92</td></tr><tr><td>Syed Abbas</td><td>2</td><td>4725.95</td></tr></table><h2>4. What the AI tried</h2><details><summary>Attempt 1 (gemini-3.5-flash-lite): asked for more tables</summary><b>Result:</b><ul class='note'><li>Person.Person has been added. See the updated table list and join path.</li></ul><p class='small'>The SOP requests sales by salesperson including their full name, order count, and rounded total sales for orders within the date range. Since Person.Person is required to get the salesperson&#x27;s first and last name, it has been requested in need_tables as it was not part of the provided single table list.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales
-FROM Sales.SalesOrderHeader AS s
-INNER JOIN Person.Person AS p
-    ON s.SalesPersonID = p.BusinessEntityID
-WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+ORDER BY Sales DESC;</pre></div></div><p class='small'>Tables the AI asked to add: Person.Person</p><h2>3. The numbers (re-run just now)</h2><h3>First month (shown to the AI): 2025-03-01 to 2025-03-31</h3><p class='no'>Does not match the expected report:</p><ul class='note'><li>17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [José Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more</li></ul><div class='cols'><div><b>Expected</b><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Ranjit Varkey Chudukatil</td><td>19</td><td>682535.53</td></tr><tr><td>Linda Mitchell</td><td>16</td><td>588184.61</td></tr><tr><td>Tsvi Reiter</td><td>19</td><td>294745.14</td></tr><tr><td>Michael Blythe</td><td>14</td><td>273730.51</td></tr><tr><td>Jae Pak</td><td>16</td><td>248595.29</td></tr><tr><td>Jillian Carson</td><td>24</td><td>236571.75</td></tr><tr><td>Tete Mensa-Annan</td><td>9</td><td>229301.06</td></tr><tr><td>Rachel Valdez</td><td>11</td><td>225768.18</td></tr><tr><td>José Saraiva</td><td>13</td><td>223118.19</td></tr><tr><td>Garrett Vargas</td><td>13</td><td>196641.63</td></tr><tr><td>David Campbell</td><td>7</td><td>124727.05</td></tr><tr><td>Shu Ito</td><td>7</td><td>114431.01</td></tr><tr><td>Lynn Tsoflias</td><td>6</td><td>111522.36</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>110623.72</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>1</td><td>64195.7</td></tr><tr><td>Syed Abbas</td><td>2</td><td>19196.24</td></tr><tr><td>Amy Alberts</td><td>1</td><td>757.0</td></tr></table></div><div><b>Produced by the SQL</b><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Ranjit Varkey Chudukatil</td><td>19</td><td>605404.0600</td></tr><tr><td>Linda Mitchell</td><td>16</td><td>521024.5000</td></tr><tr><td>Tsvi Reiter</td><td>19</td><td>261504.7400</td></tr><tr><td>Michael Blythe</td><td>14</td><td>242462.6000</td></tr><tr><td>Jae Pak</td><td>16</td><td>220752.4100</td></tr><tr><td>Jillian Carson</td><td>24</td><td>209805.6600</td></tr><tr><td>Tete Mensa-Annan</td><td>9</td><td>203549.3100</td></tr><tr><td>Rachel Valdez</td><td>11</td><td>200538.8300</td></tr><tr><td>José Saraiva</td><td>13</td><td>197975.7800</td></tr><tr><td>Garrett Vargas</td><td>13</td><td>174659.5900</td></tr><tr><td>David Campbell</td><td>7</td><td>110535.6400</td></tr><tr><td>Shu Ito</td><td>7</td><td>101628.9000</td></tr><tr><td>Lynn Tsoflias</td><td>6</td><td>98998.1500</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>98190.5800</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>1</td><td>57037.0700</td></tr><tr><td>Syed Abbas</td><td>2</td><td>17070.2200</td></tr><tr><td>Amy Alberts</td><td>1</td><td>672.2900</td></tr></table></div></div><h3>Held-out month (never shown to the AI): 2025-04-01 to 2025-04-30</h3><p class='no'>Does not match the expected report:</p><ul class='note'><li>16 cell(s) have the wrong value: [Jae Pak] Sales: expected 495918.62, got 439784.05; [José Saraiva] Sales: expected 480379.23, got 425979.11; [Michael Blythe] Sales: expected 417208.47, got 370006.98; [Jillian Carson] Sales: expected 380780.5, got 337986.22; [Linda Mitchell] Sales: expected 319181.4, got 282711.04; [Tsvi Reiter] Sales: expected 262264.67, got 232891.86; [Lynn Tsoflias] Sales: expected 255981.93, got 227344.98; [Shu Ito] Sales: expected 248058.19, got 220125.18; [Pamela Ansman-Wolfe] Sales: expected 170556.71, got 151113.88; [Garrett Vargas] Sales: expected 163799.48, got 145413.01; ... and 6 more</li></ul><div class='cols'><div><b>Expected</b><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Jae Pak</td><td>23</td><td>495918.62</td></tr><tr><td>José Saraiva</td><td>14</td><td>480379.23</td></tr><tr><td>Michael Blythe</td><td>19</td><td>417208.47</td></tr><tr><td>Jillian Carson</td><td>14</td><td>380780.5</td></tr><tr><td>Linda Mitchell</td><td>18</td><td>319181.4</td></tr><tr><td>Tsvi Reiter</td><td>13</td><td>262264.67</td></tr><tr><td>Lynn Tsoflias</td><td>15</td><td>255981.93</td></tr><tr><td>Shu Ito</td><td>11</td><td>248058.19</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>3</td><td>170556.71</td></tr><tr><td>Garrett Vargas</td><td>11</td><td>163799.48</td></tr><tr><td>Tete Mensa-Annan</td><td>10</td><td>161583.99</td></tr><tr><td>David Campbell</td><td>5</td><td>159928.17</td></tr><tr><td>Rachel Valdez</td><td>12</td><td>154307.22</td></tr><tr><td>Ranjit Varkey Chudukatil</td><td>9</td><td>134318.86</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>42546.92</td></tr><tr><td>Syed Abbas</td><td>2</td><td>4725.95</td></tr></table></div><div><b>Produced by the SQL</b><table><tr><th>Salesperson</th><th>Orders</th><th>Sales</th></tr><tr><td>Jae Pak</td><td>23</td><td>439784.0500</td></tr><tr><td>José Saraiva</td><td>14</td><td>425979.1100</td></tr><tr><td>Michael Blythe</td><td>19</td><td>370006.9800</td></tr><tr><td>Jillian Carson</td><td>14</td><td>337986.2200</td></tr><tr><td>Linda Mitchell</td><td>18</td><td>282711.0400</td></tr><tr><td>Tsvi Reiter</td><td>13</td><td>232891.8600</td></tr><tr><td>Lynn Tsoflias</td><td>15</td><td>227344.9800</td></tr><tr><td>Shu Ito</td><td>11</td><td>220125.1800</td></tr><tr><td>Pamela Ansman-Wolfe</td><td>3</td><td>151113.8800</td></tr><tr><td>Garrett Vargas</td><td>11</td><td>145413.0100</td></tr><tr><td>Tete Mensa-Annan</td><td>10</td><td>143383.0000</td></tr><tr><td>David Campbell</td><td>5</td><td>141951.9700</td></tr><tr><td>Rachel Valdez</td><td>12</td><td>136986.2500</td></tr><tr><td>Ranjit Varkey Chudukatil</td><td>9</td><td>119236.3000</td></tr><tr><td>Stephen Jiang</td><td>2</td><td>37652.9200</td></tr><tr><td>Syed Abbas</td><td>2</td><td>4197.1100</td></tr></table></div></div><h2>4. What the AI tried</h2><details><summary>Attempt 1 (nvidia/nemotron-3-ultra-550b-a55b): did not match</summary><b>Result:</b><ul class='note'><li>The database returned an error: (pyodbc.ProgrammingError) (&#x27;42S22&#x27;, &quot;[42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name &#x27;FirstName&#x27;. (207) (SQLExecDirectW); [42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name &#x27;LastName&#x27;. (207); [42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name &#x27;FirstName&#x27;. (207); [42S22] [Microsoft][ODBC Driver 18 for SQL Server][SQL Server]Invalid column name &#x27;LastName&#x27;. (207); [42S22] [Microsoft][ODBC Driver 18 for S</li></ul><p class='small'>The query uses a CTE to filter SalesOrderHeader for the date range, exclude online orders (OnlineOrderFlag = 0), and ensure a salesperson is assigned. It then joins to SalesPerson and Employee to get the salesperson&#x27;s name. Aggregation counts orders and sums SubTotal per salesperson, rounding to 2 decimals. Results are sorted by Sales descending.</p><pre>WITH FilteredOrders AS (
+SELECT
+soh.SalesPersonID,
+soh.SubTotal
+FROM Sales.SalesOrderHeader soh
+WHERE soh.OrderDate &gt;= @start_date
+AND soh.OrderDate &lt;= @end_date
+AND soh.OnlineOrderFlag = 0
+AND soh.SalesPersonID IS NOT NULL
+)
+SELECT
+e.FirstName + &#x27; &#x27; + e.LastName AS Salesperson,
+COUNT(*) AS Orders,
+ROUND(SUM(fo.SubTotal), 2) AS Sales
+FROM FilteredOrders fo
+JOIN Sales.SalesPerson sp
+    ON fo.SalesPersonID = sp.BusinessEntityID
+JOIN HumanResources.Employee e
+    ON sp.BusinessEntityID = e.BusinessEntityID
+GROUP BY e.FirstName, e.LastName
+ORDER BY Sales DESC;</pre></details><details><summary>Attempt 2 (nvidia/nemotron-3-ultra-550b-a55b): asked for more tables</summary><b>Changed since the attempt before:</b><ul class='note'><li>Started using Person.Person.BusinessEntityID</li><li>Started using Person.Person.FirstName</li><li>Started using Person.Person.LastName</li></ul><b>Result:</b><ul class='note'><li>Person.Person has been added. See the updated table list and join path.</li></ul><p class='small'>The error occurred because FirstName and LastName columns are in the Person.Person table, not HumanResources.Employee. The Employee table only contains employment-related data. The fix adds a join to Person.Person using BusinessEntityID to access the name columns, then uses p.FirstName and p.LastName in the SELECT and GROUP BY clauses.</p><pre>WITH FilteredOrders AS (
+SELECT
+soh.SalesPersonID,
+soh.SubTotal
+FROM Sales.SalesOrderHeader soh
+WHERE soh.OrderDate &gt;= @start_date
+AND soh.OrderDate &lt;= @end_date
+AND soh.OnlineOrderFlag = 0
+AND soh.SalesPersonID IS NOT NULL
+)
+SELECT
+p.FirstName + &#x27; &#x27; + p.LastName AS Salesperson,
+COUNT(*) AS Orders,
+ROUND(SUM(fo.SubTotal), 2) AS Sales
+FROM FilteredOrders fo
+JOIN Sales.SalesPerson sp
+    ON fo.SalesPersonID = sp.BusinessEntityID
+JOIN HumanResources.Employee e
+    ON sp.BusinessEntityID = e.BusinessEntityID
+JOIN Person.Person p
+    ON e.BusinessEntityID = p.BusinessEntityID
 GROUP BY p.FirstName, p.LastName
-ORDER BY Sales DESC;</pre></details><details><summary>Attempt 2 (gemini-3.5-flash-lite): did not match</summary><b>Changed since the attempt before:</b><ul class='note'><li>Nothing: this is the same SQL as the attempt before.</li></ul><b>Result:</b><ul class='note'><li>17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [José Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more</li></ul><p class='small'>The query selects sales orders filtered by the date range and ensures they are offline orders made by a salesperson. It joins Sales.SalesOrderHeader directly with Person.Person using SalesPersonID to retrieve the salesperson&#x27;s first and last name, counts the orders, and sums the subtotal, sorting the result by sales descending.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales
-FROM Sales.SalesOrderHeader AS s
-INNER JOIN Person.Person AS p
-    ON s.SalesPersonID = p.BusinessEntityID
-WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
-GROUP BY p.FirstName, p.LastName
-ORDER BY Sales DESC;</pre></details><details><summary>Attempt 3 (gemini-3.5-flash-lite): did not match</summary><b>Changed since the attempt before:</b><ul class='note'><li>Nothing: this is the same SQL as the attempt before.</li></ul><b>Result:</b><ul class='note'><li>17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [José Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more</li></ul><p class='small'>The SQL statement follows the SOP strictly, joining SalesOrderHeader with Person directly using SalesPersonID, filtering by order date and offline orders, grouping by salesperson name, and calculating total orders and rounded sales.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.SubTotal), 2) AS DECIMAL(18, 2)) AS Sales
-FROM Sales.SalesOrderHeader AS s
-INNER JOIN Person.Person AS p
-    ON s.SalesPersonID = p.BusinessEntityID
-WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
-GROUP BY p.FirstName, p.LastName
-ORDER BY Sales DESC;</pre></details><details><summary>Attempt 4 (gemini-3.5-flash-lite): matched</summary><b>Changed since the attempt before:</b><ul class='note'><li>Started using Sales.SalesOrderHeader.TotalDue</li><li>Stopped using Sales.SalesOrderHeader.SubTotal</li></ul><p><b>The AI reported a conflict:</b> The SOP specifies using the order subtotal, but the expected values require summing TotalDue (SubTotal + TaxAmt + Freight).</p><p class='small'>The SOP specifies adding up the order subtotal (the amount before tax and freight), but the expected test results match the TotalDue amount (which includes tax and freight). Therefore, we sum TotalDue to align with the expected values.</p><pre>SELECT CONCAT(p.FirstName, &#x27; &#x27;, p.LastName) AS Salesperson, COUNT(s.SalesOrderID) AS Orders, CAST(ROUND(SUM(s.TotalDue), 2) AS DECIMAL(18, 2)) AS Sales
-FROM Sales.SalesOrderHeader AS s
-INNER JOIN Person.Person AS p
-    ON s.SalesPersonID = p.BusinessEntityID
-WHERE s.OrderDate &gt;= @start_date AND s.OrderDate &lt; DATEADD(day, 1, @end_date) AND s.OnlineOrderFlag = 0 AND s.SalesPersonID IS NOT NULL
+ORDER BY Sales DESC;</pre></details><details><summary>Attempt 3 (nvidia/nemotron-3-ultra-550b-a55b): did not match</summary><b>Changed since the attempt before:</b><ul class='note'><li>Nothing: this is the same SQL as the attempt before.</li></ul><b>Result:</b><ul class='note'><li>17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [José Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more</li></ul><p class='small'>The previous attempt failed because FirstName and LastName columns exist in Person.Person, not HumanResources.Employee. The corrected query joins Sales.SalesPerson -&gt; HumanResources.Employee -&gt; Person.Person to access the salesperson&#x27;s name. The logic follows the SOP: filters orders by date range and OnlineOrderFlag=0 (excluding online orders), ensures SalesPersonID is not null, aggregates by salesperson, and sorts by Sales descending.</p><pre>WITH FilteredOrders AS (
+SELECT
+soh.SalesPersonID,
+soh.SubTotal
+FROM Sales.SalesOrderHeader soh
+WHERE soh.OrderDate &gt;= @start_date
+AND soh.OrderDate &lt;= @end_date
+AND soh.OnlineOrderFlag = 0
+AND soh.SalesPersonID IS NOT NULL
+)
+SELECT
+p.FirstName + &#x27; &#x27; + p.LastName AS Salesperson,
+COUNT(*) AS Orders,
+ROUND(SUM(fo.SubTotal), 2) AS Sales
+FROM FilteredOrders fo
+JOIN Sales.SalesPerson sp
+    ON fo.SalesPersonID = sp.BusinessEntityID
+JOIN HumanResources.Employee e
+    ON sp.BusinessEntityID = e.BusinessEntityID
+JOIN Person.Person p
+    ON e.BusinessEntityID = p.BusinessEntityID
 GROUP BY p.FirstName, p.LastName
 ORDER BY Sales DESC;</pre></details><h2>5. To approve</h2><p>This SQL cannot be approved. Fix the SOP or the expected output, then build the report again.</p></body></html>

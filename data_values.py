@@ -45,6 +45,8 @@ MAX_AVERAGE_LENGTH = 40
 # "1 = In process; 2 = Approved" in a column description
 CODE_LIST = re.compile(r"\b\d+\s*=\s*[A-Za-z]")
 CODE_START = re.compile(r"\b(\d+)\s*=\s*")
+# Text columns can hold letter codes the same way: "R = Road, M = Mountain"
+LETTER_CODE_START = re.compile(r"\b([A-Z]{1,2})\s*=\s*")
 
 # Details about individual people. Keep them out of the AI's reach until
 # someone decides otherwise.
@@ -117,16 +119,18 @@ def choose_columns(schema):
     return kept, skipped
 
 
-def read_codes(description):
+def read_codes(description, pattern=CODE_START):
     """
     "1 = In process; 2 = Approved; 5 = Shipped" -> [(1, "In process"), ...]
-    Each meaning runs until the next "number =", minus the separator.
+    "R = Road, M = Mountain" (with LETTER_CODE_START) -> [("R", "Road"), ...]
+    Each meaning runs until the next "code =", minus the separator.
     """
-    starts = list(CODE_START.finditer(description))
+    starts = list(pattern.finditer(description))
     codes = []
     for this, after in zip(starts, starts[1:] + [None]):
         meaning = description[this.end():after.start() if after else None]
-        codes.append((int(this.group(1)), meaning.strip(" ;,.")))
+        code = this.group(1)
+        codes.append((int(code) if code.isdigit() else code, meaning.strip(" ;,.")))
     return codes
 
 
@@ -143,8 +147,14 @@ def collect_values(kept):
                 f"SELECT DISTINCT [{k['column']}] AS v FROM {quoted(k['table'])} "
                 f"WHERE [{k['column']}] IS NOT NULL"
             )
+            # A letter like 'M' means nothing on its own; its meaning
+            # ('Mountain') may be in the description.
+            meanings = dict(read_codes(k["description"] or "", LETTER_CODE_START))
             for v in sorted(str(v).strip() for v in found["v"]):
-                values.append({**where, "value": v})
+                entry = {**where, "value": v}
+                if v in meanings:
+                    entry["meaning"] = meanings[v]
+                values.append(entry)
     return values
 
 
@@ -175,8 +185,8 @@ def main():
 
     codes = [v for v in values if "meaning" in v]
     print(f"Kept {len(kept)} columns, skipped {len(skipped)}.")
-    print(f"Saved {len(values)} values to {VALUES_FILE}: "
-          f"{len(values) - len(codes)} stored text values, {len(codes)} codes.")
+    print(f"Saved {len(values)} values to {VALUES_FILE}, "
+          f"{len(codes)} of them codes with a meaning.")
 
     # A few to check by eye.
     for table, column in [("Sales.SalesTerritory", "Group"),

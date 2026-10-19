@@ -3,6 +3,8 @@ Pick tables: the AI chooses which tables and columns a question needs.
 
 Steps for one question:
   1. schema_search gives a shortlist of 10 likely tables       (no AI)
+     data_search finds stored values the words refer to, and
+     the tables of the best few join the shortlist             (no AI)
   2. the AI reads their descriptions and picks the ones needed (AI)
   3. we check the AI only picked things that really exist      (no AI)
   4. schema_graph works out how to join them, with warnings    (no AI)
@@ -19,9 +21,15 @@ import sys
 
 from pydantic import BaseModel
 
+import data_search
 from llm import ask
 from schema_graph import build_graph, find_join_path
 from schema_search import SCHEMA_FILE, SKIP_COLUMNS, search, search_each
+
+# The tables holding the best few matching values join the shortlist.
+# "Clothing" is a product category, so ProductCategory is needed even
+# though no table description mentions clothing.
+VALUE_TABLES = 5
 
 
 class TableChoice(BaseModel):
@@ -30,8 +38,14 @@ class TableChoice(BaseModel):
     reason: str         # one sentence: why this table
 
 
+class FilterChoice(BaseModel):
+    words: str  # the user's words, e.g. "European"
+    value: str  # one line copied from the values list, e.g. Sales.SalesTerritory.[Group] = 'Europe'
+
+
 class Plan(BaseModel):
     tables: list[TableChoice]
+    filters: list[FilterChoice]
     questions: list[str]  # anything a person must clarify before going on
 
 
@@ -56,6 +70,17 @@ Your job:
 
 Candidate tables:
 {tables}
+
+Values stored in the database that match words in the question. They show
+which columns can filter on what the user asked for. Not all of them apply:
+{values}
+
+Filters: for every filter the question or SOP asks for (a region, a product
+type, a status, ...), put its words and the ONE line from the values list it
+means into "filters", copying the line exactly. When several lines could fit,
+choose the value that matches the words most exactly (a category named like
+them) over a looser code that also covers other things. If no line fits a
+filter, leave it out and say so in "questions".
 """
 
 
@@ -73,11 +98,12 @@ def describe_table(t):
     return "\n".join(lines)
 
 
-def build_prompt(question, shortlist, schema, sop=None):
+def build_prompt(question, shortlist, schema, sop=None, values=()):
     tables = "\n\n".join(describe_table(schema[name]) for name in shortlist)
     # If a written procedure exists, it settles what the question means.
     sop_text = f"\nWritten procedure (SOP) for this report:\n{sop}\n" if sop else ""
-    return PROMPT.format(question=question, sop=sop_text, tables=tables)
+    return PROMPT.format(question=question, sop=sop_text, tables=tables,
+                         values=data_search.describe_values(values))
 
 
 def sop_steps(sop):
@@ -107,6 +133,46 @@ def check_plan(plan, shortlist, schema):
     return accepted, rejected
 
 
+def same_words(a, b):
+    """'road bikes' and 'Road Bikes' (or 'road bike') count as the same words."""
+    def squash(text):
+        return [w.rstrip("s") for w in re.findall(r"[a-z0-9]+", str(text).lower())]
+    return squash(a) == squash(b)
+
+
+def check_filters(plan, values, tables):
+    """
+    Keep only filters copied from the values list, and make sure the table
+    holding each one is used: choosing 'Road Bikes' means ProductSubcategory
+    is needed, whether or not the AI listed it.
+
+    If a stored value says exactly what the user's words say, it wins over
+    the AI's choice. The AI tends to pick a looser code ("road bikes" ->
+    ProductLine 'R', which also counts frames and parts) even when the
+    exact one ('Road Bikes') is on its list.
+    """
+    lines = {data_search.describe_value(v).strip(): v for v in values}
+    filters, rejected = [], []
+    for f in plan.filters:
+        v = lines.get(f.value.strip())
+        if not v:
+            rejected.append(f"filter {f.value!r}: not one of the values found")
+            continue
+        exact = next((e for e in values
+                      if isinstance(e["value"], str) and not e["meaning"]
+                      and same_words(e["value"], f.words)), None)
+        note = None
+        if exact and exact is not v:
+            note = f"changed by our code from {f.value.strip()}: the stored value matches the words exactly"
+            v = exact
+        filters.append({"words": f.words, "value": data_search.describe_value(v).strip(),
+                        **({"note": note} if note else {})})
+        if v["table"] not in {t["table"] for t in tables}:
+            tables.append({"table": v["table"], "columns": [v["column"]],
+                           "reason": f"holds the filter value for \"{f.words}\""})
+    return filters, rejected
+
+
 def most_detailed_first(G, names):
     """
     Put the most detailed table first, so the joins start from it.
@@ -130,17 +196,27 @@ def most_detailed_first(G, names):
 
 
 def pick_tables(question, G, schema, ask=ask, sop=None):
+    # Search the question and each step of the procedure separately.
+    texts = [question] + (sop_steps(sop) if sop else [])
     if sop:
-        # Search the question and each step of the procedure separately.
-        shortlist = [r["table"] for r in search_each([question] + sop_steps(sop))]
+        shortlist = [r["table"] for r in search_each(texts)]
     else:
         shortlist = [r["table"] for r in search(question)]
-    plan = ask(build_prompt(question, shortlist, schema, sop), Plan)
+    values = data_search.search_each(texts)
+    for v in values[:VALUE_TABLES]:
+        if v["table"] not in shortlist:
+            shortlist.append(v["table"])
+
+    plan = ask(build_prompt(question, shortlist, schema, sop, values), Plan)
     tables, rejected = check_plan(plan, shortlist, schema)
+    filters, bad_filters = check_filters(plan, values, tables)
+    rejected += bad_filters
 
     result = {
         "question": question,
         "shortlist": shortlist,
+        "values": values,
+        "filters": filters,
         "tables": tables,
         "rejected": rejected,
         "questions": list(plan.questions),
@@ -176,6 +252,8 @@ def print_result(result):
         print(f"      why: {t['reason']}")
     if not result["tables"]:
         print("  nothing")
+    for f in result["filters"]:
+        print(f"  filter \"{f['words']}\" -> {f['value']}")
     for r in result["rejected"]:
         print(f"  [!] REJECTED AI answer - {r}")
 

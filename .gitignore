@@ -15,3 +15,6 @@ data_index.json
 
 # Reports produced by run_report.py
 output/
+
+# Record of every paid AI call, kept on this machine (written by llm.py)
+ai_calls.csv

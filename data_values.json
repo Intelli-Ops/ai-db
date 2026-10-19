@@ -447,22 +447,26 @@
   {
     "table": "HumanResources.Employee",
     "column": "MaritalStatus",
-    "value": "M"
+    "value": "M",
+    "meaning": "Married"
   },
   {
     "table": "HumanResources.Employee",
     "column": "MaritalStatus",
-    "value": "S"
+    "value": "S",
+    "meaning": "Single"
   },
   {
     "table": "HumanResources.Employee",
     "column": "Gender",
-    "value": "F"
+    "value": "F",
+    "meaning": "Female"
   },
   {
     "table": "HumanResources.Employee",
     "column": "Gender",
-    "value": "M"
+    "value": "M",
+    "meaning": "Male"
   },
   {
     "table": "HumanResources.Employee",
@@ -12774,52 +12778,62 @@
   {
     "table": "Production.Product",
     "column": "ProductLine",
-    "value": "M"
+    "value": "M",
+    "meaning": "Mountain"
   },
   {
     "table": "Production.Product",
     "column": "ProductLine",
-    "value": "R"
+    "value": "R",
+    "meaning": "Road"
   },
   {
     "table": "Production.Product",
     "column": "ProductLine",
-    "value": "S"
+    "value": "S",
+    "meaning": "Standard"
   },
   {
     "table": "Production.Product",
     "column": "ProductLine",
-    "value": "T"
+    "value": "T",
+    "meaning": "Touring"
   },
   {
     "table": "Production.Product",
     "column": "Class",
-    "value": "H"
+    "value": "H",
+    "meaning": "High"
   },
   {
     "table": "Production.Product",
     "column": "Class",
-    "value": "L"
+    "value": "L",
+    "meaning": "Low"
   },
   {
     "table": "Production.Product",
     "column": "Class",
-    "value": "M"
+    "value": "M",
+    "meaning": "Medium"
   },
   {
     "table": "Production.Product",
     "column": "Style",
-    "value": "M"
+    "value": "M",
+    "meaning": "Mens"
   },
   {
     "table": "Production.Product",
     "column": "Style",
-    "value": "U"
+    "value": "U",
+    "meaning": "Universal"
   },
   {
     "table": "Production.Product",
     "column": "Style",
-    "value": "W"
+    "value": "W",
+    "meaning": "Womens"
   },
   {
     "table": "Production.ProductCategory",
@@ -13866,32 +13880,38 @@
   {
     "table": "Production.TransactionHistory",
     "column": "TransactionType",
-    "value": "P"
+    "value": "P",
+    "meaning": "PurchaseOrder"
   },
   {
     "table": "Production.TransactionHistory",
     "column": "TransactionType",
-    "value": "S"
+    "value": "S",
+    "meaning": "SalesOrder"
   },
   {
     "table": "Production.TransactionHistory",
     "column": "TransactionType",
-    "value": "W"
+    "value": "W",
+    "meaning": "WorkOrder"
   },
   {
     "table": "Production.TransactionHistoryArchive",
     "column": "TransactionType",
-    "value": "P"
+    "value": "P",
+    "meaning": "Purchase Order"
   },
   {
     "table": "Production.TransactionHistoryArchive",
     "column": "TransactionType",
-    "value": "S"
+    "value": "S",
+    "meaning": "Sales Order"
   },
   {
     "table": "Production.TransactionHistoryArchive",
     "column": "TransactionType",
-    "value": "W"
+    "value": "W",
+    "meaning": "Work Order"
   },
   {
     "table": "Production.UnitMeasure",

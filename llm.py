@@ -11,10 +11,17 @@ The key is read from a file named .env in this folder:
 We ask OpenRouter to use only providers that do not store or train on
 what we send. Even so, real company table names need approval before
 being sent.
+
+Every call is written to ai_calls.csv: when, what for, which provider,
+how many tokens and what OpenRouter says it cost. The calls are paid
+for and checked, so there is always a full record.
 """
+import csv
+import getpass
 import os
 import re
 import time
+from datetime import datetime
 
 import httpx
 from dotenv import load_dotenv
@@ -29,10 +36,28 @@ TIMEOUT_SECONDS = 180  # give up on a single reply after this long
 # 500/502/503/504 = OpenRouter or the model's provider is busy or down.
 BUSY_CODES = {408, 429, 500, 502, 503, 504}
 
+CALL_LOG = "ai_calls.csv"
+
 # Which model gave the most recent answer, so results can be traced.
 last_model = None
 
 load_dotenv()
+
+
+def log_call(purpose, outcome, seconds, data=None):
+    """Add one line to the call log, whatever the outcome."""
+    data = data or {}
+    usage = data.get("usage") or {}
+    is_new = not os.path.exists(CALL_LOG)
+    with open(CALL_LOG, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        if is_new:
+            writer.writerow(["time", "run_by", "purpose", "outcome", "model", "provider",
+                             "input_tokens", "output_tokens", "cost_usd", "seconds"])
+        writer.writerow([datetime.now().strftime("%Y-%m-%d %H:%M:%S"), getpass.getuser(),
+                         purpose, outcome, data.get("model", MODEL_NAME), data.get("provider", ""),
+                         usage.get("prompt_tokens", ""), usage.get("completion_tokens", ""),
+                         usage.get("cost", ""), round(seconds, 1)])
 
 
 def strict(schema):
@@ -86,19 +111,28 @@ def ask(prompt, answer_format):
             "require_parameters": True,
             "data_collection": "deny",
         },
+        # Ask for the token counts and the cost, for the call log.
+        "usage": {"include": True},
     }
     headers = {"Authorization": f"Bearer {api_key}", "X-Title": "AI Reporting POC"}
 
+    purpose = answer_format.__name__  # e.g. Plan (pick tables), SqlAnswer (write SQL)
     for attempt in range(ATTEMPTS):
+        started = time.time()
         try:
             response = httpx.post(URL, json=payload, headers=headers,
                                   timeout=TIMEOUT_SECONDS)
         except httpx.TimeoutException:
             problem = f"no reply within {TIMEOUT_SECONDS} seconds"
+            # The provider may still finish and charge for it, so it is logged too.
+            log_call(purpose, "timeout", time.time() - started)
         else:
             data = response.json() if response.content else {}
             error = data.get("error") or (data.get("choices") or [{}])[0].get("error")
-            if response.status_code == 200 and not error:
+            outcome = "ok" if response.status_code == 200 and not error else \
+                f"error {(error or {}).get('code', response.status_code)}"
+            log_call(purpose, outcome, time.time() - started, data)
+            if outcome == "ok":
                 last_model = data.get("model", MODEL_NAME)
                 text = data["choices"][0]["message"]["content"]
                 # Some models wrap JSON in ```json ... ``` even when asked not to.

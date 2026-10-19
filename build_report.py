@@ -3,6 +3,7 @@ Build report: the AI writes the SQL for a report, and we prove it is right.
 
 For each report folder in reports/ (made by make_examples.py):
   1. Pick the tables and work out the joins            (pick_tables.py)
+     and find stored values the SOP's words refer to    (data_search.py)
   2. The AI writes one SQL query from the SOP             (AI)
   3. We check the SQL is safe, then run it                (no AI)
   4. We compare the result with expected.csv, cell by cell (no AI)
@@ -32,6 +33,7 @@ from pydantic import BaseModel
 
 import llm
 from compare import compare
+from data_search import describe_values
 from pick_tables import describe_table, load_schema, most_detailed_first, pick_tables
 from schema_graph import build_graph, find_join_path
 from schema_search import search
@@ -40,6 +42,7 @@ from sql_runner import BLOCKED_TABLES, check_sql, describe_params, run_sql
 
 REPORTS_DIR = Path("reports")
 MAX_ATTEMPTS = 5
+OTHER_VALUES = 10  # matching values shown from tables not picked yet
 
 
 class SqlAnswer(BaseModel):
@@ -65,6 +68,23 @@ Tables you may use (no others):
 
 How these tables join (worked out from the database's foreign keys):
 {joins}
+
+Filters already decided (the SOP's words, and the stored value they mean).
+Use each one exactly as written:
+{filters}
+
+Other values stored in these tables that match words in the SOP (found by
+searching the data). When the SOP filters on something, use the stored
+value exactly as written here. Not all of them apply:
+{values}
+
+Matching values in tables NOT in your list yet. If the SOP's filter is
+one of these, put its table in "need_tables" instead of working around it:
+{other_values}
+
+When several values could fit a word in the SOP, prefer the one that
+matches it most exactly (a category named like the SOP's words) over a
+looser code that also covers other things.
 
 Expected output when run with {param_values}: {row_count} rows.
 Columns, exactly and in this order: {columns}
@@ -178,6 +198,8 @@ def build_report(folder, G, schema):
         "date": date.today().isoformat(),
         "tables_picked_by_ai": list(tables),
         "tables_added_on_request": [],
+        "values_found": [{k: v[k] for k in ("table", "column", "value", "meaning", "score")}
+                         for v in plan["values"]],
         "attempts": [],
         "status": None,
     }
@@ -185,6 +207,7 @@ def build_report(folder, G, schema):
         log["status"] = "NO PLAN"
         log["detail"] = plan["join_error"] or "; ".join(plan["questions"])
         return finish(folder, log)
+    log["filters"] = plan["filters"]
     joins, allowed = plan_joins(G, tables)
     print(f"Tables: {', '.join(allowed)}")
 
@@ -197,6 +220,12 @@ def build_report(folder, G, schema):
                 params=describe_params(case["params"]),
                 tables="\n\n".join(describe_table(schema[name]) for name in allowed),
                 joins=describe_joins(joins),
+                filters="\n".join(f"  \"{f['words']}\": {f['value']}" for f in plan["filters"])
+                        or "  (none)",
+                values=describe_values([v for v in plan["values"] if v["table"] in allowed]),
+                # The right value may sit in a table nobody picked: show the best few.
+                other_values=describe_values(
+                    [v for v in plan["values"] if v["table"] not in allowed][:OTHER_VALUES]),
                 param_values=case["params"],
                 row_count=len(expected),
                 columns=list(expected.columns),

@@ -1,0 +1,14 @@
+{
+  "question": "Monthly road bike sales in Europe",
+  "key": [
+    "Territory"
+  ],
+  "params": {
+    "start_date": "2025-03-01",
+    "end_date": "2025-03-31"
+  },
+  "holdout_params": {
+    "start_date": "2025-04-01",
+    "end_date": "2025-04-30"
+  }
+}

@@ -15,9 +15,11 @@ that person. For each report it writes, into reports/<name>/ :
 IMPORTANT: the SQL in this file is the "answer key". It is used only to
 produce the expected CSV files. The AI never sees it.
 
-Run:  python make_examples.py
+Run:  python make_examples.py                        (all reports)
+      python make_examples.py road_bikes_in_europe   (just one)
 """
 import json
+import sys
 from pathlib import Path
 
 from sql_runner import run_sql
@@ -84,6 +86,42 @@ EXAMPLES = [
         """,
     },
     {
+        # Needs two stored values the SOP never spells out: "European"
+        # is SalesTerritory.[Group] = 'Europe', and "road bikes" is the
+        # subcategory 'Road Bikes'. Product.ProductLine = 'R' (Road) looks
+        # right but also counts road frames and parts, so its numbers differ.
+        "name": "road_bikes_in_europe",
+        "question": "Monthly road bike sales in Europe",
+        "key": ["Territory"],
+        "sop": """Monthly road bike sales in Europe
+
+1. Take every sales order whose order date is within the report period
+   (from the start date to the end date, both included).
+2. Keep only orders from our European sales territories.
+3. Look at each line of those orders and keep only the lines for road
+   bikes.
+4. For each territory, add up the quantity ordered and the line total.
+5. Show three columns: Territory (the territory name), Units, Sales.
+   Round Sales to 2 decimal places.
+6. Sort by Sales, largest first.
+""",
+        "answer_key": """
+            SELECT t.Name AS Territory,
+                   SUM(d.OrderQty) AS Units,
+                   CAST(ROUND(SUM(d.LineTotal), 2) AS decimal(18, 2)) AS Sales
+            FROM Sales.SalesOrderHeader h
+            JOIN Sales.SalesOrderDetail d ON d.SalesOrderID = h.SalesOrderID
+            JOIN Production.Product p ON p.ProductID = d.ProductID
+            JOIN Production.ProductSubcategory s ON s.ProductSubcategoryID = p.ProductSubcategoryID
+            JOIN Sales.SalesTerritory t ON t.TerritoryID = h.TerritoryID
+            WHERE h.OrderDate >= @start_date AND h.OrderDate < DATEADD(day, 1, @end_date)
+              AND t.[Group] = 'Europe'
+              AND s.Name = 'Road Bikes'
+            GROUP BY t.Name
+            ORDER BY Sales DESC
+        """,
+    },
+    {
         # This one is wrong ON PURPOSE. The SOP says "subtotal", but the
         # person who made the spreadsheet actually used TotalDue (which
         # includes tax and freight). The system should notice the SOP and
@@ -119,7 +157,10 @@ EXAMPLES = [
 
 
 def main():
+    names = sys.argv[1:]  # none given = make them all
     for example in EXAMPLES:
+        if names and example["name"] not in names:
+            continue
         folder = REPORTS_DIR / example["name"]
         folder.mkdir(parents=True, exist_ok=True)
 
