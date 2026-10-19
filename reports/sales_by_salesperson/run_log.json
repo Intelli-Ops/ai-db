@@ -157,13 +157,39 @@
       "problems": [
         "17 cell(s) have the wrong value: [Ranjit Varkey Chudukatil] Sales: expected 682535.53, got 605404.06; [Linda Mitchell] Sales: expected 588184.61, got 521024.5; [Tsvi Reiter] Sales: expected 294745.14, got 261504.74; [Michael Blythe] Sales: expected 273730.51, got 242462.6; [Jae Pak] Sales: expected 248595.29, got 220752.41; [Jillian Carson] Sales: expected 236571.75, got 209805.66; [Tete Mensa-Annan] Sales: expected 229301.06, got 203549.31; [Rachel Valdez] Sales: expected 225768.18, got 200538.83; [Jos\u00e9 Saraiva] Sales: expected 223118.19, got 197975.78; [Garrett Vargas] Sales: expected 196641.63, got 174659.59; ... and 7 more"
       ]
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "sql": "WITH FilteredOrders AS (\n    SELECT \n        soh.SalesPersonID,\n        soh.SubTotal\n    FROM Sales.SalesOrderHeader soh\n    WHERE soh.OrderDate >= @start_date\n      AND soh.OrderDate <= @end_date\n      AND soh.OnlineOrderFlag = 0\n      AND soh.SalesPersonID IS NOT NULL\n)\nSELECT \n    p.FirstName + ' ' + ISNULL(p.MiddleName + ' ', '') + p.LastName AS Salesperson,\n    COUNT(*) AS Orders,\n    ROUND(SUM(fo.SubTotal), 2) AS Sales\nFROM FilteredOrders fo\nJOIN Sales.SalesPerson sp ON fo.SalesPersonID = sp.BusinessEntityID\nJOIN HumanResources.Employee e ON sp.BusinessEntityID = e.BusinessEntityID\nJOIN Person.Person p ON e.BusinessEntityID = p.BusinessEntityID\nGROUP BY p.FirstName, p.MiddleName, p.LastName\nORDER BY Sales DESC;",
+      "explanation": "The previous attempt failed because the Salesperson name did not include the MiddleName, causing mismatches with the expected output (e.g., 'Ranjit Varkey Chudukatil' vs 'Ranjit Chudukatil'). The fix concatenates FirstName, MiddleName (with a trailing space if present), and LastName using ISNULL to handle NULL middle names. The GROUP BY clause is updated to include MiddleName to ensure correct aggregation. All other logic (date filtering, online order exclusion, joins, rounding, sorting) remains aligned with the SOP.",
+      "need_tables": [],
+      "conflict": "",
+      "tested": true,
+      "problems": [
+        "Rows that should be there but are missing (['Salesperson']): Amy Alberts; David Campbell; Garrett Vargas; Jae Pak; Jos\u00e9 Saraiva; Linda Mitchell; Lynn Tsoflias; Michael Blythe; Pamela Ansman-Wolfe; Rachel Valdez; ... and 6 more",
+        "Rows that should not be there (['Salesperson']): Amy E Alberts; David R Campbell; Garrett R Vargas; Jae B Pak; Jos\u00e9 Edvaldo Saraiva; Linda C Mitchell; Lynn N Tsoflias; Michael G Blythe; Pamela O Ansman-Wolfe; Rachel B Valdez; ... and 6 more",
+        "1 cell(s) have the wrong value: [Jillian Carson] Sales: expected 236571.75, got 209805.66"
+      ]
+    },
+    {
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "sql": "WITH FilteredOrders AS (\n    SELECT \n        soh.SalesPersonID,\n        soh.SubTotal\n    FROM Sales.SalesOrderHeader soh\n    WHERE soh.OrderDate >= @start_date\n      AND soh.OrderDate <= @end_date\n      AND soh.OnlineOrderFlag = 0\n      AND soh.SalesPersonID IS NOT NULL\n)\nSELECT \n    p.FirstName + ' ' + p.LastName AS Salesperson,\n    COUNT(*) AS Orders,\n    ROUND(SUM(fo.SubTotal), 2) AS Sales\nFROM FilteredOrders fo\nJOIN Sales.SalesPerson sp ON fo.SalesPersonID = sp.BusinessEntityID\nJOIN HumanResources.Employee e ON sp.BusinessEntityID = e.BusinessEntityID\nJOIN Person.Person p ON e.BusinessEntityID = p.BusinessEntityID\nGROUP BY p.FirstName, p.LastName\nORDER BY Sales DESC;",
+      "explanation": "The query correctly filters orders by date range and excludes online orders (OnlineOrderFlag = 0). It joins SalesOrderHeader to SalesPerson, Employee, and Person to get the salesperson's name. The grouping is by FirstName and LastName only, matching the expected output format (e.g., 'Ranjit Varkey Chudukatil' without middle initial). The sales subtotal is summed and rounded to 2 decimal places. Results are ordered by Sales descending.",
+      "need_tables": [],
+      "conflict": "",
+      "problems": [
+        "This is exactly the same SQL as attempt 3, which had the problems listed there. Change the SQL to fix them."
+      ]
     }
   ],
-  "status": "FAILED - no match after 3 attempts",
+  "status": "FAILED - no match after 5 attempts",
   "filters": [
     {
       "words": "Ignore online orders, which have no salesperson",
       "value": "Sales.SalesOrderHeader.[OnlineOrderFlag] = 1   (Order placed online by customer)"
     }
+  ],
+  "resumed_on": [
+    "2026-10-19"
   ]
 }

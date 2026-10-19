@@ -22,6 +22,8 @@ instead of bending the SQL to fit. That is flagged for a person.
 
 Run:  python build_report.py                      (all reports)
       python build_report.py sales_by_territory   (just one)
+      python build_report.py sales_by_salesperson --resume
+                                    (carry on from the saved attempts)
 """
 import json
 import sys
@@ -33,8 +35,9 @@ from pydantic import BaseModel
 
 import llm
 from compare import compare
-from data_search import describe_values
-from pick_tables import describe_table, load_schema, most_detailed_first, pick_tables
+from data_search import describe_values, search_each as search_values
+from pick_tables import (describe_filter, describe_table, load_schema, most_detailed_first,
+                         pick_tables, sop_steps)
 from schema_graph import build_graph, find_join_path
 from schema_search import search
 from sql_checks import same_sql
@@ -99,6 +102,12 @@ Rules:
   columns from the tables that came before it.
 - The same SQL will be re-run for other periods, so never hard-code dates or
   any values copied from the expected output.
+- Date filters: the period runs from @start_date to @end_date, both days
+  included. Date columns also hold a time of day, so always write
+      date_column >= @start_date AND date_column < DATEADD(day, 1, @end_date)
+  Never write date_column <= @end_date or BETWEEN @start_date AND @end_date:
+  they stop at midnight at the start of the last day and leave out every
+  order placed later that day.
 - If the SOP needs data that none of the listed tables hold, do not work around
   it. Put the full name of each missing table (schema.table) in "need_tables".
   It will be checked and added, with its join, and you will be asked again.
@@ -184,35 +193,59 @@ def try_sql(sql, allowed_tables, params, expected, key):
     return compare(result, expected, key)
 
 
-def build_report(folder, G, schema):
+def resume_plan(folder, case, sop):
+    """
+    Carry on from a saved run instead of starting again: the same tables,
+    filters and earlier attempts (with what was wrong with each), so the
+    AI's next attempt builds on them. Picking the tables again would cost
+    another AI call; the stored values are found again for free.
+    """
+    log = json.loads((folder / "run_log.json").read_text(encoding="utf-8"))
+    tables = log["tables_picked_by_ai"] + log["tables_added_on_request"]
+    plan = {
+        "values": search_values([case["question"]] + sop_steps(sop)),
+        "filters": log.get("filters", []),
+    }
+    log["resumed_on"] = log.get("resumed_on", []) + [date.today().isoformat()]
+    log["status"] = None
+    log.pop("detail", None)
+    return plan, tables, log
+
+
+def build_report(folder, G, schema, resume=False):
     case = json.loads((folder / "case.json").read_text(encoding="utf-8"))
     sop = (folder / "sop.txt").read_text(encoding="utf-8")
     expected = pd.read_csv(folder / "expected.csv")
     print(f"\n===== {folder.name}: {case['question']} =====")
 
-    # Step 1: which tables, and how do they join?
-    plan = pick_tables(case["question"], G, schema, sop=sop)
-    tables = [t["table"] for t in plan["tables"]]
-    log = {
-        "report": folder.name,
-        "date": date.today().isoformat(),
-        "tables_picked_by_ai": list(tables),
-        "tables_added_on_request": [],
-        "values_found": [{k: v[k] for k in ("table", "column", "value", "meaning", "score")}
-                         for v in plan["values"]],
-        "attempts": [],
-        "status": None,
-    }
-    if not tables or plan["join_error"]:
-        log["status"] = "NO PLAN"
-        log["detail"] = plan["join_error"] or "; ".join(plan["questions"])
-        return finish(folder, log)
-    log["filters"] = plan["filters"]
+    if resume:
+        plan, tables, log = resume_plan(folder, case, sop)
+        print(f"Resuming after attempt {len(log['attempts'])}")
+    else:
+        # Step 1: which tables, and how do they join?
+        plan = pick_tables(case["question"], G, schema, sop=sop)
+        tables = [t["table"] for t in plan["tables"]]
+        log = {
+            "report": folder.name,
+            "date": date.today().isoformat(),
+            "tables_picked_by_ai": list(tables),
+            "tables_added_on_request": [],
+            "values_found": [{k: v[k] for k in ("table", "column", "value", "meaning", "score")}
+                             for v in plan["values"]],
+            "attempts": [],
+            "status": None,
+        }
+        if not tables or plan["join_error"]:
+            log["status"] = "NO PLAN"
+            log["detail"] = plan["join_error"] or "; ".join(plan["questions"])
+            return finish(folder, log)
+        log["filters"] = plan["filters"]
     joins, allowed = plan_joins(G, tables)
     print(f"Tables: {', '.join(allowed)}")
 
     # Steps 2-5: write, check, run, compare, and feed the differences back.
-    for n in range(1, MAX_ATTEMPTS + 1):
+    done = len(log["attempts"])
+    for n in range(done + 1, done + MAX_ATTEMPTS + 1):
         answer = llm.ask(
             PROMPT.format(
                 question=case["question"],
@@ -220,8 +253,8 @@ def build_report(folder, G, schema):
                 params=describe_params(case["params"]),
                 tables="\n\n".join(describe_table(schema[name]) for name in allowed),
                 joins=describe_joins(joins),
-                filters="\n".join(f"  \"{f['words']}\": {f['value']}" for f in plan["filters"])
-                        or "  (none)",
+                filters="\n".join(f"  \"{f['words']}\": {describe_filter(f)}"
+                                  for f in plan["filters"]) or "  (none)",
                 values=describe_values([v for v in plan["values"] if v["table"] in allowed]),
                 # The right value may sit in a table nobody picked: show the best few.
                 other_values=describe_values(
@@ -280,7 +313,7 @@ def build_report(folder, G, schema):
         if not problems:
             break
     else:
-        log["status"] = f"FAILED - no match after {MAX_ATTEMPTS} attempts"
+        log["status"] = f"FAILED - no match after {len(log['attempts'])} attempts"
         return finish(folder, log)
 
     # Step 6: the real test. Same SQL, a month the AI never saw.
@@ -324,10 +357,12 @@ def finish(folder, log):
 
 
 def main():
-    names = sys.argv[1:] or sorted(p.parent.name for p in REPORTS_DIR.glob("*/case.json"))
+    resume = "--resume" in sys.argv
+    names = [a for a in sys.argv[1:] if a != "--resume"] or \
+        sorted(p.parent.name for p in REPORTS_DIR.glob("*/case.json"))
     G = build_graph()
     schema = load_schema()
-    logs = [build_report(REPORTS_DIR / name, G, schema) for name in names]
+    logs = [build_report(REPORTS_DIR / name, G, schema, resume) for name in names]
 
     print("\n===== Summary =====")
     for log in logs:

@@ -41,6 +41,7 @@ class TableChoice(BaseModel):
 class FilterChoice(BaseModel):
     words: str  # the user's words, e.g. "European"
     value: str  # one line copied from the values list, e.g. Sales.SalesTerritory.[Group] = 'Europe'
+    keep: bool  # True: keep only rows with this value. False: leave them out ("ignore online orders")
 
 
 class Plan(BaseModel):
@@ -77,7 +78,10 @@ which columns can filter on what the user asked for. Not all of them apply:
 
 Filters: for every filter the question or SOP asks for (a region, a product
 type, a status, ...), put its words and the ONE line from the values list it
-means into "filters", copying the line exactly. When several lines could fit,
+means into "filters", copying the line exactly. Set "keep" to true when only
+rows with that value are wanted ("European territories"), and to false when
+rows with that value must be left out ("ignore online orders" -> the online
+value, keep false). When several lines could fit,
 choose the value that matches the words most exactly (a category named like
 them) over a looser code that also covers other things. If no line fits a
 filter, leave it out and say so in "questions".
@@ -133,6 +137,12 @@ def check_plan(plan, shortlist, schema):
     return accepted, rejected
 
 
+def describe_filter(f):
+    """'keep only Sales.SalesTerritory.[Group] = 'Europe'' or 'leave out ...'."""
+    # Filters saved before "keep" existed were all of the keep-only kind.
+    return f"{'keep only' if f.get('keep', True) else 'leave out'} {f['value']}"
+
+
 def same_words(a, b):
     """'road bikes' and 'Road Bikes' (or 'road bike') count as the same words."""
     def squash(text):
@@ -166,7 +176,7 @@ def check_filters(plan, values, tables):
             note = f"changed by our code from {f.value.strip()}: the stored value matches the words exactly"
             v = exact
         filters.append({"words": f.words, "value": data_search.describe_value(v).strip(),
-                        **({"note": note} if note else {})})
+                        "keep": f.keep, **({"note": note} if note else {})})
         if v["table"] not in {t["table"] for t in tables}:
             tables.append({"table": v["table"], "columns": [v["column"]],
                            "reason": f"holds the filter value for \"{f.words}\""})
@@ -253,7 +263,7 @@ def print_result(result):
     if not result["tables"]:
         print("  nothing")
     for f in result["filters"]:
-        print(f"  filter \"{f['words']}\" -> {f['value']}")
+        print(f"  filter \"{f['words']}\" -> {describe_filter(f)}")
     for r in result["rejected"]:
         print(f"  [!] REJECTED AI answer - {r}")
 

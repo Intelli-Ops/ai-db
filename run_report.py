@@ -12,7 +12,8 @@ What it does, in order:
   3. Runs the approved SQL for the period.
   4. Checks the output: right columns, no repeated rows, and the same
      kinds of rows as before.
-  5. Saves the report in output/ and adds a line to output/run_history.csv.
+  5. Saves the report in output/ as an Excel file (and a CSV copy), and
+     adds a line to output/run_history.csv.
 
 Run:  python run_report.py sales_by_category 2025-05-01 2025-05-31
 """
@@ -24,6 +25,8 @@ from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import pandas as pd
+from openpyxl.styles import Font, PatternFill
+from openpyxl.utils import get_column_letter
 
 from compare import tidy
 from pick_tables import load_schema
@@ -160,10 +163,45 @@ def run_report(name, values):
 
     # 5. Save
     OUTPUT_DIR.mkdir(exist_ok=True)
-    out_file = OUTPUT_DIR / f"{name}_{period_name(params)}.csv"
-    result.to_csv(out_file, index=False)
+    out_file = OUTPUT_DIR / f"{name}_{period_name(params)}.xlsx"
+    save_excel(result, out_file, case, approval, params, warnings)
+    result.to_csv(out_file.with_suffix(".csv"), index=False)
     record(name, approval["version"], params, len(result), "OK", warnings, out_file)
     return result, warnings, out_file, approval
+
+
+def save_excel(result, path, case, approval, params, warnings):
+    """The report as a tidy Excel sheet: a title, where it came from, then the table."""
+    first_row = 3 + len(warnings)  # title, source line, notes, one blank row
+    # SQL Server sends exact decimals, which pandas does not treat as numbers.
+    result = tidy(result)
+    with pd.ExcelWriter(path, engine="openpyxl") as writer:
+        result.to_excel(writer, sheet_name="Report", index=False, startrow=first_row)
+        sheet = writer.sheets["Report"]
+        sheet["A1"] = case["question"]
+        sheet["A1"].font = Font(bold=True, size=14)
+        start, end = list(params.values())[:2]
+        sheet["A2"] = (f"Period {start} to {end}. Approved version {approval['version']} "
+                       f"(approved by {approval['approved_by']} on {approval['approved_at']}). "
+                       f"Produced {datetime.now():%Y-%m-%d %H:%M}.")
+        sheet["A2"].font = Font(italic=True, color="555555")
+        for n, w in enumerate(warnings, start=3):
+            sheet[f"A{n}"] = f"Check: {w}"
+            sheet[f"A{n}"].font = Font(color="9C5700")
+
+        header = first_row + 1  # Excel rows count from 1
+        for col, name in enumerate(result.columns, start=1):
+            cell = sheet.cell(row=header, column=col)
+            cell.font = Font(bold=True, color="FFFFFF")
+            cell.fill = PatternFill("solid", fgColor="1F4E78")
+            numbers = pd.api.types.is_numeric_dtype(result[name])
+            whole = numbers and (result[name].dropna() % 1 == 0).all()
+            for row in range(header + 1, header + 1 + len(result)):
+                if numbers:
+                    sheet.cell(row=row, column=col).number_format = "#,##0" if whole else "#,##0.00"
+            longest = max([len(str(name))] + [len(f"{v:,.2f}" if numbers else str(v))
+                                             for v in result[name]])
+            sheet.column_dimensions[get_column_letter(col)].width = min(longest + 4, 50)
 
 
 def record(name, version, params, rows, outcome, notes, out_file=""):

@@ -25,7 +25,7 @@ td:first-child, th:first-child { text-align:left; }
 .ok { color:var(--good); font-weight:600; } .no { color:var(--bad); font-weight:600; }
 .small { opacity:.75; font-size:13px; } details { margin:8px 0; }
 summary { cursor:pointer; font-weight:600; }
-</style></head><body><h1>Monthly road bike sales in Europe</h1><div class='small'>Report folder: reports/road_bikes_in_europe &middot; page made 2026-10-18 23:52</div><div class='verdict warn'><b>PASSED its tests. Waiting for a person to review and approve.</b><br>SQL written by nvidia/nemotron-3-ultra-550b-a55b on 2026-10-18, after 1 attempt(s).</div><h2>1. Things to check before approving</h2><p>Found by our own code, not by the AI. Each one is a way the report could be wrong even though the test months match.</p><ul class='check'><li>Date filter: OrderDate is compared with &#x27;&lt;= @end_date&#x27; (or BETWEEN). OrderDate holds a date AND a time, so rows with a time during the last day are left out. Safer: OrderDate &lt; DATEADD(day, 1, @end_date).</li></ul><details><summary>Good to know about the joins (3)</summary><ul class='note'><li>Join Sales.SalesOrderHeader -&gt; Sales.SalesTerritory - MAY DROP ROWS: Sales.SalesOrderHeader rows where TerritoryID is empty are left out.</li><li>Sales.SalesOrderDetail is joined straight to Production.Product (SalesOrderDetail.ProductID = Product.ProductID). The database does not declare this link. It matches on the primary key of Production.Product, so it cannot duplicate rows, but confirm it means what the SOP intends.</li><li>Join Production.Product -&gt; Production.ProductSubcategory - MAY DROP ROWS: Production.Product rows where ProductSubcategoryID is empty are left out.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly road bike sales in Europe
+</style></head><body><h1>Monthly road bike sales in Europe</h1><div class='small'>Report folder: reports/road_bikes_in_europe &middot; page made 2026-10-19 01:17</div><div class='verdict warn'><b>PASSED its tests. Waiting for a person to review and approve.</b><br>SQL written by nvidia/nemotron-3-ultra-550b-a55b on 2026-10-18, after 1 attempt(s).</div><h2>1. Things to check before approving</h2><p class='ok'>Our checks found nothing that needs attention.</p><details><summary>Good to know about the joins (3)</summary><ul class='note'><li>Join Sales.SalesOrderHeader -&gt; Sales.SalesTerritory - MAY DROP ROWS: Sales.SalesOrderHeader rows where TerritoryID is empty are left out.</li><li>Sales.SalesOrderDetail is joined straight to Production.Product (SalesOrderDetail.ProductID = Product.ProductID). The database does not declare this link. It matches on the primary key of Production.Product, so it cannot duplicate rows, but confirm it means what the SOP intends.</li><li>Join Production.Product -&gt; Production.ProductSubcategory - MAY DROP ROWS: Production.Product rows where ProductSubcategoryID is empty are left out.</li></ul></details><h2>2. The written procedure and the SQL</h2><div class='cols'><div><b>Written procedure (SOP)</b><pre>Monthly road bike sales in Europe
 
 1. Take every sales order whose order date is within the report period
    (from the start date to the end date, both included).
@@ -42,6 +42,9 @@ summary { cursor:pointer; font-weight:600; }
 -- Written by: nvidia/nemotron-3-ultra-550b-a55b on 2026-10-18, attempt 1 of 1
 -- Parameters: @start_date date, @end_date date
 -- Tables:     Production.Product, Production.ProductSubcategory, Sales.SalesOrderDetail, Sales.SalesOrderHeader, Sales.SalesTerritory, Sales.SpecialOfferProduct
+-- Edited:     2026-10-19 by hand (no AI), at the reviewer&#x27;s request: the date filter
+--             &quot;soh.OrderDate &lt;= @end_date&quot; became &quot;&lt; DATEADD(day, 1, @end_date)&quot;,
+--             so orders placed after midnight on the last day are counted.
 WITH FilteredOrders AS (
 SELECT
 st.Name AS Territory,
@@ -57,7 +60,7 @@ JOIN Production.Product p
 JOIN Production.ProductSubcategory psc
     ON p.ProductSubcategoryID = psc.ProductSubcategoryID
 WHERE soh.OrderDate &gt;= @start_date
-AND soh.OrderDate &lt;= @end_date
+AND soh.OrderDate &lt; DATEADD(day, 1, @end_date)
 AND st.[Group] = &#x27;Europe&#x27;
 AND psc.Name = &#x27;Road Bikes&#x27;
 )
