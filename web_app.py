@@ -122,7 +122,7 @@ def home():
                      f"<span class='status {css}'>{html.escape(text)}</span>{review}{action}</div>")
     ask = ("<div class='card'><h2>Ask a question</h2><p class='small'>Coming later: type a "
            "question in plain English and get a table back.</p><input disabled size='60' "
-           "placeholder='e.g. Sales of road bikes in Europe last March'> "
+           "placeholder='e.g. Payments received by insurance company last month'> "
            "<button disabled>Ask</button></div>")
     return page("Reports", "".join(cards) + ask)
 

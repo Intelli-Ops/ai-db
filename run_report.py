@@ -15,7 +15,7 @@ What it does, in order:
   5. Saves the report in output/ as an Excel file (and a CSV copy), and
      adds a line to output/run_history.csv.
 
-Run:  python run_report.py sales_by_category 2025-05-01 2025-05-31
+Run:  python run_report.py some_report 2026-09-01 2026-09-30
 """
 import csv
 import getpass

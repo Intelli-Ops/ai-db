@@ -1,154 +1,161 @@
 """
-Phase 1: Extract the database schema into schema.json.
+Build schema.json: the tables the AI may use, with descriptions and links.
 
-For every table, this reads:
-  - its columns and data types
-  - its primary key (the column that uniquely identifies each row)
-  - its foreign keys (links to other tables)
-  - any built-in descriptions stored in the database (MS_Description)
+Reads what explore_db.py and the description step saved (no database
+query, no AI):
+  EPM/<schema>/catalog.json       tables, columns, primary keys, foreign keys
+  EPM/<schema>/descriptions.json  one description and a kind per table
+
+Leaves out tables of kind backup, empty and system (copies, temp tables,
+users/permissions/jobs): they would only confuse the search.
+
+Our database defines very few foreign keys, so links are also INFERRED
+from column names. If a table's whole primary key is one column, say
+CASEINFO.CASEID, then a CASEID column in another table points to it.
+  PAYMENT.BILLID  -> BILL.BILLID
+  BILL.CASEID     -> CASEINFO.CASEID
+Spelling differences are ignored (STUDY_ID = StudyID = Study_Id).
+Inferred links are marked, so the join step warns about them.
 
 schema.json is the raw material for:
-  - Phase 2: schema RAG (we embed table and column descriptions)
-  - Phase 3: schema graph (tables become nodes, foreign keys become edges)
+  schema_search.py  (finds tables by meaning)
+  schema_graph.py   (works out joins)
+
+Run:  python extract_schema.py            (uses DB_NAME and the dbo schema)
 """
 import json
+import os
+import re
+import sys
+from collections import defaultdict
 
-import pandas as pd
+from db import DB_NAME
 
-from db import get_engine
+LEAVE_OUT = {"backup", "empty", "system"}
 
-engine = get_engine()
+# Key names held by more than one table: which table is the real home.
+PREFERRED_HOME = {
+    "appointmenttypeid": "APPOINTMENTTYPE",
+    "insurancelookupid": "INSURANCECOMPANYLOOKUP2",
+    "paymentid": "PAYMENT",
+    "documentid": "PATIENT_DOCUMENTS",
+    "verificationid": "VERIFICATION",
+    "hcfaid": "HCFA1500",
+}
 
-# Every column of every real table (views are excluded)
-COLUMNS_SQL = """
-SELECT c.TABLE_SCHEMA, c.TABLE_NAME, c.COLUMN_NAME, c.DATA_TYPE, c.IS_NULLABLE
-FROM INFORMATION_SCHEMA.COLUMNS c
-JOIN INFORMATION_SCHEMA.TABLES t
-  ON t.TABLE_SCHEMA = c.TABLE_SCHEMA AND t.TABLE_NAME = c.TABLE_NAME
-WHERE t.TABLE_TYPE = 'BASE TABLE'
-ORDER BY c.TABLE_SCHEMA, c.TABLE_NAME, c.ORDINAL_POSITION
-"""
+# Other names used for the same key.
+SYNONYMS = {
+    "mrn": "patientregid",          # MRN is the patient ID (PATIENTREGID)
+    "patientmrn": "patientregid",
+}
 
-# Which columns form each table's primary key
-PRIMARY_KEYS_SQL = """
-SELECT k.TABLE_SCHEMA, k.TABLE_NAME, k.COLUMN_NAME
-FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS tc
-JOIN INFORMATION_SCHEMA.KEY_COLUMN_USAGE k
-  ON k.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
- AND k.TABLE_SCHEMA = tc.TABLE_SCHEMA
-WHERE tc.CONSTRAINT_TYPE = 'PRIMARY KEY'
-"""
-
-# Every foreign key: "column X in table A points to column Y in table B"
-FOREIGN_KEYS_SQL = """
-SELECT
-    fk.name                    AS fk_name,
-    SCHEMA_NAME(tp.schema_id)  AS from_schema,
-    tp.name                    AS from_table,
-    cp.name                    AS from_column,
-    SCHEMA_NAME(tr.schema_id)  AS to_schema,
-    tr.name                    AS to_table,
-    cr.name                    AS to_column
-FROM sys.foreign_keys fk
-JOIN sys.foreign_key_columns fkc ON fkc.constraint_object_id = fk.object_id
-JOIN sys.tables  tp ON tp.object_id = fkc.parent_object_id
-JOIN sys.columns cp ON cp.object_id = fkc.parent_object_id
-                   AND cp.column_id = fkc.parent_column_id
-JOIN sys.tables  tr ON tr.object_id = fkc.referenced_object_id
-JOIN sys.columns cr ON cr.object_id = fkc.referenced_object_id
-                   AND cr.column_id = fkc.referenced_column_id
-"""
-
-# Built-in descriptions. column_name is NULL for table-level descriptions.
-DESCRIPTIONS_SQL = """
-SELECT
-    SCHEMA_NAME(t.schema_id)          AS table_schema,
-    t.name                            AS table_name,
-    c.name                            AS column_name,
-    CAST(ep.value AS NVARCHAR(4000))  AS description
-FROM sys.extended_properties ep
-JOIN sys.tables t ON t.object_id = ep.major_id
-LEFT JOIN sys.columns c ON c.object_id = ep.major_id
-                       AND c.column_id = ep.minor_id
-WHERE ep.name = 'MS_Description' AND ep.class = 1
-"""
+# Generic key names that say nothing about which table they point to.
+TOO_GENERIC = {"id", "statusid", "logid"}
 
 
-def full_name(schema, table):
-    return f"{schema}.{table}"
+def type_family(sql_type):
+    """'bigint' -> 'number', 'varchar(50)' -> 'text'. Links need the same family."""
+    t = sql_type.split("(")[0].lower()
+    if t in ("bigint", "int", "smallint", "tinyint", "numeric", "decimal", "float"):
+        return "number"
+    if t in ("varchar", "nvarchar", "char", "nchar"):
+        return "text"
+    return t
+
+
+def key_name(column):
+    """CASEID, CaseId, Case_ID -> 'caseid'."""
+    k = re.sub(r"[^a-z0-9]", "", column.lower())
+    return SYNONYMS.get(k, k)
 
 
 def main():
-    print("Reading schema from the database...")
-    cols = pd.read_sql(COLUMNS_SQL, engine)
-    pks = pd.read_sql(PRIMARY_KEYS_SQL, engine)
-    fks = pd.read_sql(FOREIGN_KEYS_SQL, engine)
-    descs = pd.read_sql(DESCRIPTIONS_SQL, engine)
+    schema = sys.argv[1] if len(sys.argv) > 1 else "dbo"
+    folder = os.path.join(DB_NAME, schema)
+    with open(os.path.join(folder, "catalog.json"), encoding="utf-8") as f:
+        catalog = json.load(f)
+    with open(os.path.join(folder, "descriptions.json"), encoding="utf-8") as f:
+        described = {d["table"]: d for d in json.load(f)}
 
-    # Split descriptions into table-level and column-level lookups
-    table_desc, col_desc = {}, {}
-    for r in descs.itertuples(index=False):
-        name = full_name(r.table_schema, r.table_name)
-        if pd.isna(r.column_name):
-            table_desc[name] = r.description
-        else:
-            col_desc[(name, r.column_name)] = r.description
-
-    # Build one entry per table
     tables = {}
-    for r in cols.itertuples(index=False):
-        name = full_name(r.TABLE_SCHEMA, r.TABLE_NAME)
-        table = tables.setdefault(name, {
-            "name": name,
-            "description": table_desc.get(name, ""),
-            "columns": [],
-            "primary_key": [],
+    for o in catalog["objects"]:
+        d = described.get(o["name"])
+        if o["kind"] != "table" or not d or d["kind"] in LEAVE_OUT:
+            continue
+        tables[o["name"]] = {
+            "name": o["name"],
+            "kind": d["kind"],
+            "rows": o["row_count"],
+            "description": d["description"],
+            "columns": [{"name": c["name"], "type": c["type"], "nullable": c["nullable"],
+                         "description": c["description"]} for c in o["columns"]],
+            "primary_key": o["primary_key"],
             "foreign_keys": [],
-        })
-        table["columns"].append({
-            "name": r.COLUMN_NAME,
-            "type": r.DATA_TYPE,
-            "nullable": r.IS_NULLABLE == "YES",
-            "description": col_desc.get((name, r.COLUMN_NAME), ""),
-        })
+        }
 
-    for r in pks.itertuples(index=False):
-        name = full_name(r.TABLE_SCHEMA, r.TABLE_NAME)
-        if name in tables:
-            tables[name]["primary_key"].append(r.COLUMN_NAME)
+    # Declared foreign keys (only those between tables we keep).
+    declared = 0
+    for o in catalog["objects"]:
+        t = tables.get(o["name"])
+        if not t:
+            continue
+        for fk in o["foreign_keys"]:
+            ref_table, ref_column = fk["references"].rsplit(".", 1)
+            if ref_table in tables:
+                t["foreign_keys"].append({
+                    "fk_name": f"FK {t['name']}.{fk['column']}",
+                    "column": fk["column"],
+                    "references_table": ref_table,
+                    "references_column": ref_column,
+                    "inferred": False,
+                })
+                declared += 1
 
-    for r in fks.itertuples(index=False):
-        src = full_name(r.from_schema, r.from_table)
-        if src in tables:
-            tables[src]["foreign_keys"].append({
-                "fk_name": r.fk_name,
-                "column": r.from_column,
-                "references_table": full_name(r.to_schema, r.to_table),
-                "references_column": r.to_column,
+    # Where each single-column primary key lives.
+    homes = defaultdict(list)
+    for t in tables.values():
+        if len(t["primary_key"]) == 1:
+            homes[key_name(t["primary_key"][0])].append(t["name"])
+    home = {}
+    for k, names in homes.items():
+        if k in TOO_GENERIC:
+            continue
+        if len(names) == 1:
+            home[k] = names[0]
+        elif k in PREFERRED_HOME:
+            home[k] = f"{schema}.{PREFERRED_HOME[k]}"
+
+    inferred = 0
+    for t in tables.values():
+        linked = {fk["column"] for fk in t["foreign_keys"]}
+        for c in t["columns"]:
+            target = home.get(key_name(c["name"]))
+            if not target or target == t["name"] or c["name"] in linked:
+                continue
+            target_key = tables[target]["primary_key"][0]
+            target_type = next(x["type"] for x in tables[target]["columns"] if x["name"] == target_key)
+            if type_family(c["type"]) != type_family(target_type):
+                continue  # e.g. a text PAYMENTID cannot hold PAYMENT's number IDs
+            t["foreign_keys"].append({
+                "fk_name": f"inferred {t['name']}.{c['name']}",
+                "column": c["name"],
+                "references_table": target,
+                "references_column": target_key,
+                "inferred": True,
             })
+            inferred += 1
 
     with open("schema.json", "w", encoding="utf-8") as f:
         json.dump(list(tables.values()), f, indent=2, ensure_ascii=False)
 
-    # Summary so you can see what was extracted
-    n_cols = sum(len(t["columns"]) for t in tables.values())
-    n_fks = sum(len(t["foreign_keys"]) for t in tables.values())
-    n_desc = sum(1 for t in tables.values() if t["description"])
-    print(f"Tables:            {len(tables)}")
-    print(f"Columns:           {n_cols}")
-    print(f"Foreign key links: {n_fks}")
-    print(f"Tables with a description: {n_desc}")
+    kinds = defaultdict(int)
+    for t in tables.values():
+        kinds[t["kind"]] += 1
+    print(f"Tables:          {len(tables)}  {dict(kinds)}")
+    print(f"Columns:         {sum(len(t['columns']) for t in tables.values())}")
+    print(f"Declared links:  {declared}")
+    print(f"Inferred links:  {inferred}")
     print("Saved to schema.json")
-
-    # Show one table as an example
-    example = tables.get("Sales.SalesOrderHeader")
-    if example:
-        print("\nExample - Sales.SalesOrderHeader")
-        print("  Description:", example["description"])
-        print("  Primary key:", example["primary_key"])
-        print("  Links to:")
-        for fk in example["foreign_keys"]:
-            print(f"    {fk['column']} -> {fk['references_table']}.{fk['references_column']}")
 
 
 if __name__ == "__main__":

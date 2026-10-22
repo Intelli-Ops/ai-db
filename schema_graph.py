@@ -9,6 +9,8 @@ Each join also comes with warnings about what it can do to the numbers:
   - MULTIPLIES ROWS: one row can match many, so sums get overstated
   - MAY DROP ROWS:   rows with no match silently disappear
   - AMBIGUOUS:       the two tables are linked in more than one way
+  - INFERRED:        the database does not declare this link; it was
+                     guessed from matching column names (extract_schema.py)
 
 Run:  python schema_graph.py
 """
@@ -18,6 +20,13 @@ from collections import defaultdict
 import networkx as nx
 from networkx.algorithms.approximation import steiner_tree
 
+# Joins should go through the main tables (core and lookup). Report,
+# history and other-system tables are copies or side records, so passing
+# THROUGH one to reach another table is made expensive. They can still be
+# used when the question asks for them directly.
+MAIN_KINDS = {"core", "lookup"}
+SIDE_TABLE_COST = 10
+
 
 def build_graph(schema_file="schema.json"):
     with open(schema_file, encoding="utf-8") as f:
@@ -25,7 +34,7 @@ def build_graph(schema_file="schema.json"):
 
     G = nx.Graph()
     for t in schema:
-        G.add_node(t["name"], description=t["description"])
+        G.add_node(t["name"], description=t["description"], kind=t.get("kind", "core"))
 
     for t in schema:
         nullable = {c["name"]: c["nullable"] for c in t["columns"]}
@@ -59,13 +68,16 @@ def build_graph(schema_file="schema.json"):
                 # If the foreign key covers the child's whole primary key,
                 # a parent can have at most one child row (one-to-one).
                 "child_unique": bool(primary_key) and primary_key <= set(fk_columns),
+                "inferred": any(c.get("inferred") for c in cols),
             }
             # Two tables can be linked in more than one way
             # (e.g. billing address and shipping address), so keep a list.
             if G.has_edge(t["name"], ref_table):
                 G[t["name"]][ref_table]["fks"].append(link)
             else:
-                G.add_edge(t["name"], ref_table, fks=[link])
+                main = all(G.nodes[n]["kind"] in MAIN_KINDS for n in (t["name"], ref_table))
+                G.add_edge(t["name"], ref_table, fks=[link],
+                           weight=1 if main else SIDE_TABLE_COST)
     return G
 
 
@@ -94,6 +106,13 @@ def describe_link(link, frm, to):
         warnings.append({
             "type": "MAY DROP ROWS",
             "message": f"{parent} rows with no matching {child} row are left out.",
+        })
+
+    if link.get("inferred"):
+        warnings.append({
+            "type": "INFERRED",
+            "message": f"this link was guessed from matching column names ({columns}); "
+                       f"the database does not declare it.",
         })
 
     if link["nullable"]:
@@ -129,7 +148,7 @@ def find_join_path(G, tables):
 
     # Steiner tree = the smallest set of edges that connects all the
     # requested tables, adding in-between tables where necessary.
-    tree = steiner_tree(component, tables, method="mehlhorn")
+    tree = steiner_tree(component, tables, weight="weight", method="mehlhorn")
 
     joins = []
     for parent, child in nx.bfs_edges(tree, tables[0]):
@@ -179,14 +198,7 @@ def main():
 
     # Demo questions and the tables each would need
     demos = [
-        # "Total sales by territory"
-        ["Sales.SalesOrderHeader", "Sales.SalesTerritory"],
-        # "Sales by product category"
-        ["Sales.SalesOrderHeader", "Production.ProductCategory"],
-        # "Which department do our salespeople belong to, and what did they sell?"
-        ["HumanResources.Department", "Sales.SalesOrderHeader"],
-        # "Sales by customer city"
-        ["Sales.SalesOrderHeader", "Person.Address"],
+        # ["dbo.SOME_TABLE", "dbo.OTHER_TABLE"],
     ]
     for tables in demos:
         print_join_path(G, tables)

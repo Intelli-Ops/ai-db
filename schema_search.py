@@ -7,8 +7,8 @@ of numbers (an "embedding") so that texts with a similar meaning get
 similar numbers. A question is turned into numbers the same way, and
 the tables whose descriptions are closest in meaning are returned.
 
-That is how "revenue by region" can find Sales.SalesOrderHeader and
-Sales.SalesTerritory even though neither word appears in their names.
+That is how a question can find the right table even when none of its
+words appear in the table's name.
 
 The model runs on this machine. Nothing is sent to an outside service.
 
@@ -36,7 +36,8 @@ INDEX_DOCS = "schema_index.json"     # which table/column each row of numbers is
 
 # Housekeeping columns that exist on almost every table and say nothing
 # about what the table is for. Leaving them in only adds noise.
-SKIP_COLUMNS = {"rowguid", "ModifiedDate"}
+SKIP_COLUMNS = {"CreatedBy", "CREATEDBY", "LASTUPDATEDBY", "LASTUPDATEDON",
+                "LastUpdatedBy", "LastUpdatedOn", "LastUpdatedBY"}
 
 _model = None
 
@@ -156,39 +157,7 @@ def search_each(texts, per_text=3, index=None):
 # Each inner list is "any one of these tables will do" (for example, sales
 # figures can come from the order header or from the order lines).
 TEST_QUESTIONS = [
-    ("Total sales by territory",
-     [["Sales.SalesOrderHeader", "Sales.SalesOrderDetail"], ["Sales.SalesTerritory"]]),
-    ("Show me revenue by region",
-     [["Sales.SalesOrderHeader", "Sales.SalesOrderDetail"], ["Sales.SalesTerritory"]]),
-    ("Sales by product category",
-     [["Sales.SalesOrderHeader", "Sales.SalesOrderDetail"], ["Production.ProductCategory"]]),
-    ("Sales by customer city",
-     [["Sales.SalesOrderHeader", "Sales.SalesOrderDetail"], ["Person.Address"]]),
-    ("How many employees work in each department",
-     [["HumanResources.Employee", "HumanResources.EmployeeDepartmentHistory"],
-      ["HumanResources.Department"]]),
-    ("Average pay rate by job title",
-     [["HumanResources.EmployeePayHistory"], ["HumanResources.Employee"]]),
-    ("Which vendors supply each product",
-     [["Purchasing.Vendor"], ["Production.Product", "Purchasing.ProductVendor"]]),
-    ("Purchase order spend by vendor",
-     [["Purchasing.PurchaseOrderHeader", "Purchasing.PurchaseOrderDetail"],
-      ["Purchasing.Vendor"]]),
-    ("Current stock on hand per warehouse location",
-     [["Production.ProductInventory"], ["Production.Location"]]),
-    ("Top selling products last year",
-     [["Sales.SalesOrderDetail"], ["Production.Product"]]),
-    ("Number of orders paid with each credit card type",
-     [["Sales.SalesOrderHeader"], ["Sales.CreditCard"]]),
-    ("Scrapped quantity by scrap reason",
-     [["Production.WorkOrder"], ["Production.ScrapReason"]]),
-    ("Sales quota versus actual sales for each salesperson",
-     [["Sales.SalesPerson", "Sales.SalesPersonQuotaHistory"],
-      ["Sales.SalesOrderHeader", "Sales.SalesOrderDetail"]]),
-    ("Average customer rating for each product",
-     [["Production.ProductReview"], ["Production.Product"]]),
-    ("Money owed to us by each store",
-     [["Sales.SalesOrderHeader"], ["Sales.Store"]]),
+    # ("question in plain English", [["table that must be found", "or this one"], ...]),
 ]
 
 # Held-out questions. The search settings above were chosen by looking at
@@ -196,29 +165,7 @@ TEST_QUESTIONS = [
 # afterwards and never used for tuning, so they give the honest score.
 # Do not adjust the search to fix these; add new questions instead.
 HELD_OUT_QUESTIONS = [
-    ("Headcount by shift",
-     [["HumanResources.EmployeeDepartmentHistory", "HumanResources.Employee"],
-      ["HumanResources.Shift"]]),
-    ("Which products are low on inventory and need reordering",
-     [["Production.ProductInventory"], ["Production.Product"]]),
-    ("Number of order lines sold under each special offer",
-     [["Sales.SpecialOffer"], ["Sales.SalesOrderDetail", "Sales.SpecialOfferProduct"]]),
-    ("Freight cost by shipping method",
-     [["Purchasing.ShipMethod"],
-      ["Sales.SalesOrderHeader", "Purchasing.PurchaseOrderHeader"]]),
-    ("Why do customers buy from us: orders by sales reason",
-     [["Sales.SalesReason"],
-      ["Sales.SalesOrderHeaderSalesReason", "Sales.SalesOrderHeader"]]),
-    ("Manufacturing cost by work centre",
-     [["Production.WorkOrderRouting"], ["Production.Location"]]),
-    ("Tax collected by state",
-     [["Sales.SalesOrderHeader", "Sales.SalesTaxRate"], ["Person.StateProvince"]]),
-    ("Email addresses of all our contacts",
-     [["Person.EmailAddress"], ["Person.Person"]]),
-    ("Parts needed to build each bicycle",
-     [["Production.BillOfMaterials"], ["Production.Product"]]),
-    ("Orders placed in a foreign currency",
-     [["Sales.SalesOrderHeader"], ["Sales.CurrencyRate", "Sales.Currency"]]),
+    # Same format as TEST_QUESTIONS.
 ]
 
 

@@ -4,6 +4,10 @@ Compare: check a report against the expected output, cell by cell.
 This is the objective test. No AI is involved: either every cell
 matches or we get a plain list of what is different. That list is
 what gets sent back to the AI so it can fix its SQL.
+
+The list for the AI (show_values=False) never contains a value from
+the data: only counts and column names. The full list, with values,
+is only for the person reviewing on this machine.
 """
 import pandas as pd
 
@@ -31,12 +35,14 @@ def show(items):
     return text
 
 
-def compare(result, expected, key):
+def compare(result, expected, key, show_values=True):
     """
     Return a list of differences. An empty list means a perfect match.
 
     key is the list of columns that identify a row (e.g. ["Territory"]),
     so we compare Canada with Canada even if the rows are in another order.
+
+    show_values=False leaves every value out, for text sent to the AI.
     """
     if list(result.columns) != list(expected.columns):
         return [
@@ -51,7 +57,8 @@ def compare(result, expected, key):
         repeated = r.loc[r.duplicated(subset=key), key].drop_duplicates()
         problems.append(
             f"The result has more than one row for the same {key}: "
-            f"{show(repeated.itertuples(index=False, name=None))}"
+            + (show(repeated.itertuples(index=False, name=None)) if show_values
+               else f"{len(repeated)} key(s) repeated")
         )
         return problems
 
@@ -61,11 +68,13 @@ def compare(result, expected, key):
     missing = e_rows.index.difference(r_rows.index)
     extra = r_rows.index.difference(e_rows.index)
     if len(missing):
-        problems.append(f"Rows that should be there but are missing ({key}): {show(missing)}")
+        problems.append(f"Rows that should be there but are missing ({key}): "
+                        + (show(missing) if show_values else f"{len(missing)} row(s)"))
     if len(extra):
-        problems.append(f"Rows that should not be there ({key}): {show(extra)}")
+        problems.append(f"Rows that should not be there ({key}): "
+                        + (show(extra) if show_values else f"{len(extra)} row(s)"))
 
-    different = []
+    different, wrong_columns = [], {}
     for row in e_rows.index.intersection(r_rows.index):
         for column in e_rows.columns:
             want, got = e_rows.at[row, column], r_rows.at[row, column]
@@ -75,12 +84,22 @@ def compare(result, expected, key):
             same = abs(want - got) <= TOLERANCE if both_numbers else want == got
             if not same:
                 different.append(f"[{row}] {column}: expected {want}, got {got}")
-    if different:
+                if both_numbers:
+                    # Too high or too low says a lot about the bug, without the numbers.
+                    wrong_columns.setdefault(column, []).append("too high" if got > want else "too low")
+                else:
+                    wrong_columns.setdefault(column, []).append("different")
+    if different and show_values:
         problems.append(f"{len(different)} cell(s) have the wrong value: {show(different)}")
+    elif different:
+        problems.append(f"{len(different)} cell(s) have the wrong value: " + "; ".join(
+            f"{column}: {len(how)} wrong ("
+            + ", ".join(f"{how.count(h)} {h}" for h in dict.fromkeys(how)) + ")"
+            for column, how in wrong_columns.items()))
 
     if not problems and list(r_rows.index) != list(e_rows.index):
         problems.append(
-            "All values are right, but the rows are in the wrong order. "
-            f"Expected order starts: {show(e_rows.index)}"
+            "All values are right, but the rows are in the wrong order."
+            + (f" Expected order starts: {show(e_rows.index)}" if show_values else "")
         )
     return problems

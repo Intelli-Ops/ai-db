@@ -15,8 +15,8 @@ reports/<name>/review.html (open it in a browser):
 Approving saves the SQL as a numbered version. run_report.py will only
 ever run an approved version.
 
-Run:  python review_report.py sales_by_category
-      python review_report.py sales_by_category --approve "Your Name"
+Run:  python review_report.py some_report
+      python review_report.py some_report --approve "Your Name"
 """
 import hashlib
 import html

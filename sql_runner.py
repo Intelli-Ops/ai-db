@@ -26,7 +26,7 @@ engine = get_engine()
 QUERY_TIMEOUT_SECONDS = 60
 
 # Tables no report may read, even if the AI asks for them.
-BLOCKED_TABLES = {"Person.Password"}
+BLOCKED_TABLES = set()
 
 # Anything that changes data or the database itself.
 FORBIDDEN = (
@@ -66,7 +66,7 @@ def check_sql(sql, allowed_tables):
             problems.append(
                 f"Table {full_name} is not in the approved list. "
                 f"Use only: {', '.join(sorted(allowed_tables))}. "
-                f"Always include the schema, e.g. Sales.SalesOrderHeader."
+                f"Always include the schema, e.g. dbo.BILL."
             )
     return sorted(set(problems))
 
