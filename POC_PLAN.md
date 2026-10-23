@@ -40,7 +40,7 @@ Build every piece the agent needs to "know" the database, make the report tables
 - [x] Descriptions for every dbo table (`EPM/dbo/descriptions.md`).
 - [x] `schema.json` for EPM (258 usable tables).
 - [x] Search index (embeddings of descriptions, built on this machine).
-- [ ] Describe every **column** of the report tables, starting with all 80 columns of `Bot_BDRReport_StudyLevel`. *(no AI calls)*
+- [x] Describe every **column** of the 4 main report tables (189 columns, incl. all 82 of `Bot_BDRReport_StudyLevel`). *(23 Oct, no AI calls)*
 - [ ] Rebuild the search index and check that "submission date", "patient name", "study ID" now find the BDR table first.
 
 ### 1B. Schema graph: know how tables join
@@ -104,3 +104,4 @@ A map of the actual records: patient → cases → studies → bills → payment
 | Date | What was done |
 |---|---|
 | 22 Oct 2026 | POC plan written. 1A and 1B partly done in earlier work (see PROJECT_GUIDE.md, Phase 3). |
+| 23 Oct 2026 | Column descriptions for the 4 main report tables; search index rebuild started. |

@@ -5,6 +5,8 @@ Reads what explore_db.py and the description step saved (no database
 query, no AI):
   EPM/<schema>/catalog.json       tables, columns, primary keys, foreign keys
   EPM/<schema>/descriptions.json  one description and a kind per table
+  EPM/<schema>/column_descriptions.json  (optional) column descriptions,
+                                  written by hand for the report tables
 
 Leaves out tables of kind backup, empty and system (copies, temp tables,
 users/permissions/jobs): they would only confuse the search.
@@ -76,19 +78,28 @@ def main():
         catalog = json.load(f)
     with open(os.path.join(folder, "descriptions.json"), encoding="utf-8") as f:
         described = {d["table"]: d for d in json.load(f)}
+    column_notes = {}  # optional hand-written column descriptions
+    notes_file = os.path.join(folder, "column_descriptions.json")
+    if os.path.exists(notes_file):
+        with open(notes_file, encoding="utf-8") as f:
+            column_notes = {k: v for k, v in json.load(f).items() if not k.startswith("_")}
 
     tables = {}
     for o in catalog["objects"]:
         d = described.get(o["name"])
         if o["kind"] != "table" or not d or d["kind"] in LEAVE_OUT:
             continue
+        notes = column_notes.get(o["name"], {})
+        for missing in set(notes) - {c["name"] for c in o["columns"]}:
+            print(f"Warning: {o['name']} has no column {missing!r} (column_descriptions.json)")
         tables[o["name"]] = {
             "name": o["name"],
             "kind": d["kind"],
             "rows": o["row_count"],
             "description": d["description"],
             "columns": [{"name": c["name"], "type": c["type"], "nullable": c["nullable"],
-                         "description": c["description"]} for c in o["columns"]],
+                         "description": notes.get(c["name"]) or c["description"]}
+                        for c in o["columns"]],
             "primary_key": o["primary_key"],
             "foreign_keys": [],
         }

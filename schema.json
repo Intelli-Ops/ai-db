@@ -2086,271 +2086,271 @@
         "name": "id",
         "type": "bigint",
         "nullable": false,
-        "description": ""
+        "description": "Row number of this report row."
       },
       {
         "name": "Paymentid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Payment ID; links to PAYMENT.PAYMENTID. One row per payment per CPT line."
       },
       {
         "name": "PATIENT_NAME",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Patient (injured worker) full name."
       },
       {
         "name": "MRN",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Patient ID; links to PATIENT.PATIENTREGID."
       },
       {
         "name": "BUSINESSREGID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Provider business ID; links to BUSINESSINFO.BUSINESSREGID."
       },
       {
         "name": "PROVIDER",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Provider business (client) name."
       },
       {
         "name": "CASEID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Case ID; links to CASEINFO.CASEID."
       },
       {
         "name": "ADJNUMBER",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "WCAB case number (ADJ number) from EAMS."
       },
       {
         "name": "CASETYPE",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Type of the workers' comp case."
       },
       {
         "name": "STUDY_NAME",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Study or service name."
       },
       {
         "name": "STUDY_ID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Study ID; links to STUDY_TO_BE_REQUESTED.STUDY_ID."
       },
       {
         "name": "STATUS",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Current status of the study."
       },
       {
         "name": "CPTCODE",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "CPT procedure code billed."
       },
       {
         "name": "CPD Code Description",
         "type": "varchar(800)",
         "nullable": true,
-        "description": ""
+        "description": "Description of the CPT code."
       },
       {
         "name": "BILLCPTCODEID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Bill line ID; links to BILLCPTCODE.BILLCPTCODEID."
       },
       {
         "name": "BILLDATE",
         "type": "date",
         "nullable": true,
-        "description": ""
+        "description": "Date of the bill."
       },
       {
         "name": "DOS",
         "type": "date",
         "nullable": true,
-        "description": ""
+        "description": "Date of service."
       },
       {
         "name": "TOTAL_BILLED",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Amount billed for the CPT line."
       },
       {
         "name": "INSURANCE_COMPANY",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance company / payer that paid."
       },
       {
         "name": "PAYMENT",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Amount of this payment applied to the CPT line."
       },
       {
         "name": "PAYMENTDATE",
         "type": "date",
         "nullable": true,
-        "description": ""
+        "description": "Date of the payment."
       },
       {
         "name": "PAYMENT_TYPE",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Type of payment (insurance payment, settlement, advance, etc.)."
       },
       {
         "name": "CHECKNUMBER",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Check (or EFT) number the payment came on."
       },
       {
         "name": "CHECKAMOUNT",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total amount of the whole check."
       },
       {
         "name": "TOTAL_PAID",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total paid on the CPT line so far."
       },
       {
         "name": "TOTAL_WRITTEN_OFF",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total written off on the CPT line."
       },
       {
         "name": "TOTAL_OUTSTANDING",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Balance still owed on the CPT line."
       },
       {
         "name": "OWNER",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Owner of the receivable."
       },
       {
         "name": "SUB_OWNER",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Sub-owner of the receivable."
       },
       {
         "name": "PORTFOLIO",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Portfolio the account is grouped under."
       },
       {
         "name": "REASON",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Reason recorded with the payment or adjustment."
       },
       {
         "name": "Case Validity",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Whether the case is valid or invalid for collection."
       },
       {
         "name": "Date Turned Invalid",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Date the case was marked invalid."
       },
       {
         "name": "Reason Of Invalid",
         "type": "varchar(2000)",
         "nullable": true,
-        "description": ""
+        "description": "Why the case was marked invalid."
       },
       {
         "name": "Payment Posted Date",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the payment was posted (entered) in the system."
       },
       {
         "name": "Credit To Collector",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Collector credited with the payment."
       },
       {
         "name": "PPOReduction",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Reduction taken by the payer under a PPO contract."
       },
       {
         "name": "OtherReduction",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Other reductions taken by the payer."
       },
       {
         "name": "NOTES",
         "type": "varchar(max)",
         "nullable": true,
-        "description": ""
+        "description": "Free-text notes on the payment."
       },
       {
         "name": "PHYSICIAN NAME",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Treating physician name."
       },
       {
         "name": "DEPOSITDATE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the check was deposited."
       },
       {
         "name": "CHECKDATE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date printed on the check."
       },
       {
         "name": "CHECKPOSTEDBY",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "User who posted the check."
       },
       {
         "name": "CHECKPOSTEDON",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the check was posted (check posting date)."
       },
       {
         "name": "facilityname",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Facility where the service was performed."
       }
     ],
     "primary_key": [
@@ -4562,199 +4562,199 @@
         "name": "summaryId",
         "type": "bigint",
         "nullable": false,
-        "description": ""
+        "description": "Row number of this summary row."
       },
       {
         "name": "businessregid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Provider business ID; links to BUSINESSINFO.BUSINESSREGID."
       },
       {
         "name": "Category",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Billing dashboard work category the study falls in (e.g. incomplete bills, rejected bills, payer responses)."
       },
       {
         "name": "Catory_id",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Number of the dashboard category."
       },
       {
         "name": "SubCategory",
         "type": "varchar(100)",
         "nullable": true,
-        "description": ""
+        "description": "Sub-category within the dashboard category."
       },
       {
         "name": "1-30 Days",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Count of items 1-30 days since the bill was sent by EDI (aging bucket)."
       },
       {
         "name": "31-60 Days",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Count of items 31-60 days since the bill was sent by EDI (aging bucket)."
       },
       {
         "name": "61-90 Days",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Count of items 61-90 days since the bill was sent by EDI (aging bucket)."
       },
       {
         "name": "91-180 Days",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Count of items 91-180 days since the bill was sent by EDI (aging bucket)."
       },
       {
         "name": "180+ Days",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Count of items over 180 days since the bill was sent by EDI (aging bucket)."
       },
       {
         "name": "TaskTotal",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Total items in all aging buckets."
       },
       {
         "name": "TotalCount",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Total count for the category."
       },
       {
         "name": "JobRunDate",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the nightly job built this row (data as of this date)."
       },
       {
         "name": "patientregid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Patient ID; links to PATIENT.PATIENTREGID."
       },
       {
         "name": "OUTSTANDING",
         "type": "decimal(18,2)",
         "nullable": true,
-        "description": ""
+        "description": "Balance still owed for the study."
       },
       {
         "name": "study_id",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Study ID; links to STUDY_TO_BE_REQUESTED.STUDY_ID."
       },
       {
         "name": "caseid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Case ID; links to CASEINFO.CASEID."
       },
       {
         "name": "TotalCategoryCount",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Total count across the category."
       },
       {
         "name": "study_status",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Current status of the study."
       },
       {
         "name": "paid",
         "type": "decimal(12,4)",
         "nullable": true,
-        "description": ""
+        "description": "Amount paid for the study."
       },
       {
         "name": "charges",
         "type": "decimal(12,4)",
         "nullable": true,
-        "description": ""
+        "description": "Amount billed (charges) for the study."
       },
       {
         "name": "DATEOFSERVICE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date of service."
       },
       {
         "name": "Total_OMFS",
         "type": "decimal(12,2)",
         "nullable": true,
-        "description": ""
+        "description": "Official Medical Fee Schedule (OMFS) allowed amount for the study."
       },
       {
         "name": "Writeoff",
         "type": "decimal(12,2)",
         "nullable": true,
-        "description": ""
+        "description": "Amount written off."
       },
       {
         "name": "Advance",
         "type": "decimal(12,2)",
         "nullable": true,
-        "description": ""
+        "description": "Advance payments received (paid before settlement)."
       },
       {
         "name": "Soldate",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Statute of limitations date: last date to file, from the date of service (3 years or 18 months)."
       },
       {
         "name": "LienFiled",
         "type": "bit",
         "nullable": true,
-        "description": ""
+        "description": "Whether a lien has been filed with the WCAB."
       },
       {
         "name": "LienActivated",
         "type": "bit",
         "nullable": true,
-        "description": ""
+        "description": "Whether the lien has been activated (activation fee paid)."
       },
       {
         "name": "CNRAmount",
         "type": "decimal(18,2)",
         "nullable": true,
-        "description": ""
+        "description": "Compromise and Release (C&R) settlement amount from the settlement document."
       },
       {
         "name": "CLOSING_ORDER_DESCRIPTION",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Description of the case closing order."
       },
       {
         "name": "validityid",
         "type": "int",
         "nullable": true,
-        "description": ""
+        "description": "Case validity code (valid or invalid for collection)."
       },
       {
         "name": "FileStatus",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Current file status of the case."
       },
       {
         "name": "PaymentType",
         "type": "varchar(100)",
         "nullable": true,
-        "description": ""
+        "description": "Type of payment received (insurance payment, settlement, advance, etc.)."
       }
     ],
     "primary_key": [
@@ -4801,175 +4801,175 @@
         "name": "id",
         "type": "bigint",
         "nullable": false,
-        "description": ""
+        "description": "Row number of this report row."
       },
       {
         "name": "patientregid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Patient ID; links to PATIENT.PATIENTREGID."
       },
       {
         "name": "businessregid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Provider business ID; links to BUSINESSINFO.BUSINESSREGID."
       },
       {
         "name": "patientname",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Patient (injured worker) full name."
       },
       {
         "name": "caseid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Case ID; links to CASEINFO.CASEID."
       },
       {
         "name": "InsuranceName",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance company / payer name."
       },
       {
         "name": "InsuranceAddress",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Payer street address."
       },
       {
         "name": "CITY",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Payer city."
       },
       {
         "name": "STATE",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Payer state."
       },
       {
         "name": "ZIPCODE",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Payer zip code."
       },
       {
         "name": "CLAIM_NUMBER",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance claim number of the case."
       },
       {
         "name": "study_id",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Study ID; links to STUDY_TO_BE_REQUESTED.STUDY_ID."
       },
       {
         "name": "billid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Bill ID; links to BILL.BILLID."
       },
       {
         "name": "BILLCPTCODEID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Bill line ID; links to BILLCPTCODE.BILLCPTCODEID. One row per CPT line."
       },
       {
         "name": "EmployerName",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Patient's employer."
       },
       {
         "name": "BillByEDIDate",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the bill was sent electronically (EDI) to the clearinghouse; empty if not yet sent."
       },
       {
         "name": "BillByEDIStatus",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Electronic bill status from the clearinghouse or payer (accepted, rejected)."
       },
       {
         "name": "VERIFICATION_STATUS_DESC",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance/claim verification status before billing."
       },
       {
         "name": "DATEOFSERVICE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date of service."
       },
       {
         "name": "appointmenttypeid",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Appointment/study type ID; links to APPOINTMENTTYPE."
       },
       {
         "name": "Reason_for_Denial",
         "type": "varchar(max)",
         "nullable": true,
-        "description": ""
+        "description": "Denial or rejection reason."
       },
       {
         "name": "edi_status",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Electronic (EDI) claim status."
       },
       {
         "name": "submission_type",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "How the bill was submitted: electronic (EDI), mail or fax."
       },
       {
         "name": "study_status",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Current status of the study."
       },
       {
         "name": "TotalPAID",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total paid for the study."
       },
       {
         "name": "TotalOUTSTANDING",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Balance still owed for the study."
       },
       {
         "name": "CreatedBy",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "User who created the row."
       },
       {
         "name": "LASTUPDATEDBY",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "User who last updated the row."
       },
       {
         "name": "LASTUPDATEDON",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the row was last updated."
       }
     ],
     "primary_key": [
@@ -5250,493 +5250,493 @@
         "name": "id",
         "type": "bigint",
         "nullable": false,
-        "description": ""
+        "description": "Row number of this report row."
       },
       {
         "name": "PATIENTREGID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Patient ID (MRN); links to PATIENT.PATIENTREGID."
       },
       {
         "name": "PATIENT_NAME",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Patient (injured worker) full name."
       },
       {
         "name": "CASETYPE",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Type of the workers' comp case."
       },
       {
         "name": "DATEOFBIRTH",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Patient date of birth."
       },
       {
         "name": "EMPLOYER",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Patient's employer at the time of injury."
       },
       {
         "name": "BUSINESSID",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Provider business code shown to users."
       },
       {
         "name": "BUSINESSREGID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Provider business ID; links to BUSINESSINFO.BUSINESSREGID."
       },
       {
         "name": "BUSINESSNAME",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Provider business (client) name."
       },
       {
         "name": "PROVIDER TAX ID",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Provider tax ID (TIN) used on the bill."
       },
       {
         "name": "PROVIDER NPI",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Provider National Provider Identifier on the bill."
       },
       {
         "name": "DATEOFSERVICE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date of service (DOS): the date the study/visit was performed."
       },
       {
         "name": "DATE OF INJURY",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date of injury (DOI) of the workers' comp case."
       },
       {
         "name": "APPOINTMENTTYPE",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Study or appointment type (the service performed)."
       },
       {
         "name": "AMOUNTBILLED",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total amount billed (charges) for the study."
       },
       {
         "name": "PAID",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total amount paid so far for the study."
       },
       {
         "name": "WRITEOFF",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Total amount written off for the study."
       },
       {
         "name": "OUTSTANDING",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Balance still owed: billed minus paid minus written off."
       },
       {
         "name": "OMFS",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Official Medical Fee Schedule (OMFS) allowed amount for the study."
       },
       {
         "name": "Market_Values",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Market value of the services billed."
       },
       {
         "name": "BILLDATE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the bill was dated."
       },
       {
         "name": "INSURANCE NAME",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance company / claims administrator (payer) name."
       },
       {
         "name": "INSURANCE ADDRESS",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Payer street address."
       },
       {
         "name": "CITY",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Payer city."
       },
       {
         "name": "STATE",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "Payer state."
       },
       {
         "name": "ZIPCODE",
         "type": "varchar(25)",
         "nullable": true,
-        "description": ""
+        "description": "Payer zip code."
       },
       {
         "name": "CLAIM_NUMBER",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance claim number of the case."
       },
       {
         "name": "PHONE",
         "type": "varchar(30)",
         "nullable": true,
-        "description": ""
+        "description": "Payer phone number."
       },
       {
         "name": "ATTORNEY_NAME",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Applicant attorney name."
       },
       {
         "name": "ATTORNEY ADDRESS",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Attorney street address."
       },
       {
         "name": "CITY1",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Attorney city."
       },
       {
         "name": "STATE1",
         "type": "varchar(25)",
         "nullable": true,
-        "description": ""
+        "description": "Attorney state."
       },
       {
         "name": "ZIPCODE1",
         "type": "varchar(25)",
         "nullable": true,
-        "description": ""
+        "description": "Attorney zip code."
       },
       {
         "name": "PHONE1",
         "type": "varchar(25)",
         "nullable": true,
-        "description": ""
+        "description": "Attorney phone number."
       },
       {
         "name": "BUSINESS FACILITY NAME",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Facility where the service was performed."
       },
       {
         "name": "BUSINESS FACILITY ADDRESS",
         "type": "varchar(250)",
         "nullable": true,
-        "description": ""
+        "description": "Facility street address."
       },
       {
         "name": "BUSINESS FACILITY CITY",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Facility city."
       },
       {
         "name": "BUSINESS FACILITY STATE",
         "type": "varchar(20)",
         "nullable": true,
-        "description": ""
+        "description": "Facility state."
       },
       {
         "name": "BUSINESS FACILITY ZIPCODE",
         "type": "varchar(25)",
         "nullable": true,
-        "description": ""
+        "description": "Facility zip code."
       },
       {
         "name": "BUSINESS FACILITY NPI",
         "type": "varchar(30)",
         "nullable": true,
-        "description": ""
+        "description": "Facility NPI."
       },
       {
         "name": "BUSINESS PHYSICIAN NAME",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Rendering (treating) physician name."
       },
       {
         "name": "BUSINESS PHYSICIAN NPI",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "Rendering physician NPI."
       },
       {
         "name": "BUSINESS PHYSICIAN LICENSE",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "Rendering physician license number."
       },
       {
         "name": "BUSINESS PHYSICIAN Taxonomy Code",
         "type": "varchar(30)",
         "nullable": true,
-        "description": ""
+        "description": "Rendering physician taxonomy (specialty) code."
       },
       {
         "name": "REFERRING PHYSICIAN NAME",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Referring physician name."
       },
       {
         "name": "REFERRING PHYSICIAN NPI",
         "type": "varchar(25)",
         "nullable": true,
-        "description": ""
+        "description": "Referring physician NPI."
       },
       {
         "name": "REFERRING PHYSICIAN LICENSE",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "Referring physician license number."
       },
       {
         "name": "CASEID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Case ID; links to CASEINFO.CASEID."
       },
       {
         "name": "STUDY_ID",
         "type": "bigint",
         "nullable": true,
-        "description": ""
+        "description": "Study ID (one billed service/visit); links to STUDY_TO_BE_REQUESTED.STUDY_ID. One row per study."
       },
       {
         "name": "EXTERNALCASEID",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "Case ID in the client's own system."
       },
       {
         "name": "EXTERNAL MRN",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Patient ID in the client's own system."
       },
       {
         "name": "External study id",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Study ID in the client's own system."
       },
       {
         "name": "OWNER_NAME",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Owner of the receivable (who the account belongs to)."
       },
       {
         "name": "PORTFOLIO_NAME",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "Portfolio the account is grouped under."
       },
       {
         "name": "SUB OWNER_NAME",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "Sub-owner of the receivable."
       },
       {
         "name": "STATUS",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Current status of the study (open, closed, etc.)."
       },
       {
         "name": "STATUS_CHANGED_BY",
         "type": "varchar(150)",
         "nullable": true,
-        "description": ""
+        "description": "User who last changed the study status."
       },
       {
         "name": "STATUS_CHANGED_ON",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the study status was last changed."
       },
       {
         "name": "BILLCREATEDDATE",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the bill was created in the system."
       },
       {
         "name": "BILLCREATEDBY",
         "type": "varchar(100)",
         "nullable": true,
-        "description": ""
+        "description": "User who created the bill."
       },
       {
         "name": "Service Type",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Type of service billed."
       },
       {
         "name": "Bill Submission Status",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Status of the bill submission to the payer (sent, accepted, rejected)."
       },
       {
         "name": "Bill Submission Date",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the bill was submitted (sent) to the payer."
       },
       {
         "name": "Bill Submission Type",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "How the bill was submitted: electronic (EDI), mail or fax."
       },
       {
         "name": "L3A_Payor_Status",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Status of the first level payer follow-up / response."
       },
       {
         "name": "L3A_Payor_Date",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date of the first level payer follow-up / response."
       },
       {
         "name": "L3B_Payor_Status",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Status of the second level payer follow-up / response."
       },
       {
         "name": "L3B_Payor_Date",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date of the second level payer follow-up / response."
       },
       {
         "name": "Payment_Allowed",
         "type": "float",
         "nullable": true,
-        "description": ""
+        "description": "Amount the payer allowed on the explanation of review (EOR)."
       },
       {
         "name": "Reason_for_Denial",
         "type": "varchar(max)",
         "nullable": true,
-        "description": ""
+        "description": "Denial or rejection reason from the payer or clearinghouse."
       },
       {
         "name": "EDI_status",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Electronic (EDI) claim status from the clearinghouse."
       },
       {
         "name": "File_response",
         "type": "varchar(50)",
         "nullable": true,
-        "description": ""
+        "description": "Response received for the submitted file."
       },
       {
         "name": "response_date",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the response was received."
       },
       {
         "name": "SBR_TYPE",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Second Bill Review (SBR) type: request for reconsideration after a payer decision."
       },
       {
         "name": "Billing Month",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Month the study was billed (for grouping)."
       },
       {
         "name": "Billing Week",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Week the study was billed (for grouping)."
       },
       {
         "name": "UNIQUE APPOINTMENTTYPE",
         "type": "varchar(500)",
         "nullable": true,
-        "description": ""
+        "description": "All appointment types of the study combined into one value."
       },
       {
         "name": "Verification Status",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Insurance/claim verification status before billing."
       },
       {
         "name": "Bill Type",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Type of bill (original, rebill, etc.)."
       },
       {
         "name": "EDI service Type",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Service type sent in the electronic (EDI) claim."
       },
       {
         "name": "Edi Status",
         "type": "varchar(80)",
         "nullable": true,
-        "description": ""
+        "description": "Electronic claim status (second copy)."
       },
       {
         "name": "Submission Date",
         "type": "datetime",
         "nullable": true,
-        "description": ""
+        "description": "Date the claim was submitted (sent) to the payer or clearinghouse."
       }
     ],
     "primary_key": [
