@@ -1,0 +1,101 @@
+# How tables link, where the column names alone don't say it.
+#
+# step04_links.py finds most links by itself (declared foreign keys, and a
+# column named like another table's key, e.g. BILLCPTCODEID -> BILLCPTCODE).
+# This file adds the rest. Every link here is still CHECKED against the data
+# (counts only): a guess that doesn't match is reported as rejected, so it is
+# safe to list several possible targets and let the data decide.
+#
+# Targets are written "schema.TABLE.KEYCOLUMN".
+
+# Columns whose name matches a pattern (in any table), with possible targets.
+by_pattern:
+  - pattern: "(created|updated|assigned|auth|response|changed|modified|entered|deleted|approved|reviewed|uploaded)_?by$"
+    meaning: "a user of the application (who did it)"
+    targets: [dbo.BUSINESSUSER.USERREGID, settle.Users.UserId]
+  - pattern: "^collector(_?regid|_?id)?$"
+    meaning: "a collector (a user of the application)"
+    targets: [dbo.BUSINESSUSER.USERREGID, settle.Users.UserId]
+
+# Single columns, with possible targets (the best match wins).
+try:
+  dbo.CASEINFO.PTP: [dbo.PHYSICIAN.PHYSICIAN_ID, dbo.PRIMARYTREATINGPHYSICIAN.PTP_ID, dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.CASEINFO.PTP_BUSINESSREGID: [dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.CASEINFO.ATTORNEY: [dbo.ATTORNEYINFORMATIONLOOKUP.ATTORNEY_LOOKUPID, dbo.DEFENSEATTORNEY.DEFENSE_ATTORNEY_ID,
+                          dbo.CUSTOMER_Firm_Information.CUSTOMER_Firm_ID, dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.CASEINFO.ATTORNEY_BUSINESSREGID: [dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.CASEINFO.REFERRING_PHYSICIAN: [dbo.PHYSICIAN.PHYSICIAN_ID, dbo.REFERRINGPHYSICIAN.PTPID, dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.CASEINFO.PRIMARYSUBOWNER: [dbo.BUSINESSUSER.USERREGID, dbo.OWNER_PORTFOLIO.PORTFOLIO_ID]
+  dbo.CASEINFO.CUSTOMER_ID: [dbo.CUSTOMER.CUSTOMER_ID, dbo.CUSTOMER_Firm_Information.CUSTOMER_Firm_ID]
+  dbo.STUDY_TO_BE_REQUESTED.REFERRING_PHYSICIAN: [dbo.PHYSICIAN.PHYSICIAN_ID, dbo.REFERRINGPHYSICIAN.PTPID, dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.STUDY_TO_BE_REQUESTED.INVOICE_ID: [dbo.INVOICE.INVOICE_ID]
+  dbo.STUDY_TO_BE_REQUESTED.EdiStatus_ID: [dbo.EDI_Status.EDIStatus_ID]
+  dbo.BILL.APPOINTMENTTYPE: [dbo.APPOINTMENTTYPE.APPOINTMENTTYPEID]
+  dbo.BILL.PHYSICIANID: [dbo.PHYSICIAN.PHYSICIAN_ID, dbo.DOCTORS.DOCTOR_ID, dbo.PATIENT_DOCUMENTS_DOCTORS.PD_DOCTOR_ID,
+                         dbo.BUSINESSUSER.USERREGID, dbo.BUSINESSINFO.BUSINESSREGID]
+  dbo.ACTIONTAKEN.PATIENTID: [dbo.PATIENT.PATIENTREGID]
+  dbo.ACTIONTAKEN.BUSINESSID: [dbo.BUSINESSINFO.BUSINESSREGID, dbo.BUSINESSINFO.BUSINESSID]
+  dbo.ACTIONTAKEN.PATIENT_DOCUMENTS_FAX_ID: [dbo.PATIENT_DOCUMENTS_Fax.Documents_fax_id]
+  dbo.COLLECTORCASE.PATIENTID: [dbo.PATIENT.PATIENTREGID]
+  dbo.COLLECTORCASE.BUSINESSID: [dbo.BUSINESSINFO.BUSINESSREGID, dbo.BUSINESSINFO.BUSINESSID]
+  dbo.PREPAYMENTINFO.BUSINESSID: [dbo.BUSINESSINFO.BUSINESSREGID, dbo.BUSINESSINFO.BUSINESSID]
+  dbo.FOLLOWUP_SCHEDULES_SET.ACTIONTAKENID: [dbo.ACTIONTAKEN.ACTIONTAKENID, dbo.ACTIONSTATUS.ACTIONID]
+  dbo.NSP_FOLLOWUP_SCHEDULES_SET.ACTIONTAKENID: [dbo.ACTIONTAKEN.ACTIONTAKENID, dbo.ACTIONSTATUS.ACTIONID]
+  dbo.CASEINFO.GradeID: [dbo.Grade_Dropdown.ID]
+  dbo.CASEINFO.ValidityID: [dbo.Validity_Dropdown.ID, dbo.DOR_Validity_type.Validity_Type_ID]
+  dbo.CASEINFO.Invalid_ReasonID: [dbo.Invalid_Reason_Dropdown.ID]
+  dbo.SB1160_INFO_MASTER.SB1160_REVIEW_STATUS_ID: [dbo.SB1160_Review_Status_Dropdown.ID]
+  dbo.DOR_Case_Information.coverage_board_id: [dbo.DOR_Coverage_Board.Board_ID]
+  dbo.DOR_Case_Information.lien_paymentid: [dbo.PAYMENT.PAYMENTID]
+  dbo.DOR_case_lien_additional_information.lien_paymentid: [dbo.PAYMENT.PAYMENTID]
+  dbo.PAYMENT.CHECKCOPYID: [dbo.CHECK_DOCUMENTS.CHECK_DOCUMENT_ID]
+  dbo.AutoAppeal.AppealPacket_Document_ID: [dbo.PATIENT_DOCUMENTS.DOCUMENT_ID]
+  dbo.BUSINESSUSER.SupervisorID: [dbo.BUSINESSUSER.USERREGID]
+  dbo.BUSINESSUSER.Supervisor_ID: [dbo.BUSINESSUSER.USERREGID]
+  dbo.INJURY.CURRENT_ILLENESS_QUALIFIER_ID: [dbo.HCFA_QUALIFIER.QUALIFIER_ID]
+  dbo.INJURY.OTHER_DATE_QUALIFIER_ID: [dbo.HCFA_QUALIFIER.QUALIFIER_ID]
+  dbo.INSURANCE.OTHER_CLAIM_QUALIFIER_ID: [dbo.HCFA_QUALIFIER.QUALIFIER_ID]
+  settle.SettlementOffer.ProviderId: [settle.Providers.Id, settle.Providers.MedProviderId, dbo.BUSINESSINFO.BUSINESSREGID]
+  settle.SettlementOffer.businessid: [dbo.BUSINESSINFO.BUSINESSREGID, dbo.BUSINESSINFO.BUSINESSID]
+  settle.SettlementOffer.Collector_Supervisor_ID: [settle.Users.UserId, dbo.BUSINESSUSER.USERREGID]
+  settle.Users.SupervisorID: [settle.Users.UserId]
+
+# Columns that hold a comma-separated LIST of keys (one row points to several
+# rows). Checked on the first key of each list.
+lists:
+  dbo.COLLECTION.PaymentID: dbo.PAYMENT.PAYMENTID
+
+# Links that need two or more columns together. "direct" is a one-column link
+# that does the same job when it is filled; "answer_key" compares the result
+# with a bot-built report.
+composite:
+  - name: "A bill's study, when BILL.STUDY_ID is empty: the study of the same case and the same appointment type"
+    table: dbo.BILL
+    target: dbo.STUDY_TO_BE_REQUESTED
+    target_key: STUDY_ID
+    join_on: {CASEID: CASEID, APPOINTMENTTYPE: APPOINTMENTTYPEID}
+    direct: STUDY_ID
+    answer_key: {table: dbo.BillingDashboardSummary_PatientLevel, row: billid, expect: study_id}
+
+# "Two roads agree": a table that stores a fact directly AND can reach it
+# through a link. If the two roads give the same answer, the links are right
+# and either road can be used. Form: table, the link to follow, and the two
+# columns that should be equal (this table's column = the linked table's column).
+agree:
+  # The original tables
+  - {table: dbo.PAYMENT, via: BILLCPTCODEID -> dbo.BILLCPTCODE.BILLCPTCODEID, compare: BILLID = BILLID}
+  - {table: dbo.PAYMENT, via: BILLID -> dbo.BILL.BILLID, compare: PATIENTREGID = PATIENTREGID}
+  - {table: dbo.BILLCPTCODE, via: BILLID -> dbo.BILL.BILLID, compare: CASEID = CASEID}
+  - {table: dbo.BILL, via: CASEID -> dbo.CASEINFO.CASEID, compare: PATIENTREGID = PATIENTREGID}
+  - {table: dbo.BILL, via: CASEID -> dbo.CASEINFO.CASEID, compare: BUSINESSREGID = BUSINESSREGID}
+  - {table: dbo.BILL, via: STUDY_ID -> dbo.STUDY_TO_BE_REQUESTED.STUDY_ID, compare: CASEID = CASEID}
+  - {table: dbo.STUDY_TO_BE_REQUESTED, via: CASEID -> dbo.CASEINFO.CASEID, compare: PATIENTREGID = PATIENTREGID}
+  # The answer key (bot-built reports) against the original tables
+  - {table: dbo.BillingDashboardSummary_PatientLevel, via: billid -> dbo.BILL.BILLID, compare: study_id = STUDY_ID}
+  - {table: dbo.BillingDashboardSummary_PatientLevel, via: study_id -> dbo.STUDY_TO_BE_REQUESTED.STUDY_ID, compare: patientregid = PATIENTREGID}
+  - {table: dbo.BillingDashboardSummary_PatientLevel, via: study_id -> dbo.STUDY_TO_BE_REQUESTED.STUDY_ID, compare: caseid = CASEID}
+  - {table: dbo.BillingDashboardSummary_PatientLevel, via: billcptcodeid -> dbo.BILLCPTCODE.BILLCPTCODEID, compare: billid = BILLID}
+  - {table: dbo.billingdashboard_offlinedata, via: BILLCPTCODEID -> dbo.BILLCPTCODE.BILLCPTCODEID, compare: billid = BILLID}
+  - {table: dbo.billingdashboard_offlinedata, via: billid -> dbo.BILL.BILLID, compare: study_id = STUDY_ID}
+  - {table: dbo.BillingDashboard_AgingSummary, via: study_id -> dbo.STUDY_TO_BE_REQUESTED.STUDY_ID, compare: caseid = CASEID}
+  - {table: dbo.FileStatusOfflineData, via: CASEID -> dbo.CASEINFO.CASEID, compare: PATIENTREGID = PATIENTREGID}

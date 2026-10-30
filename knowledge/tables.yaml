@@ -1,0 +1,1434 @@
+# What the tables and columns of EPM_For_Automation mean, in plain English.
+#
+# Written in Step 3 from table and column NAMES only (plus Step 1-2 counts):
+# no row of data was read to write it. It is a first draft: anything marked
+# "check:" is a question for someone who knows the system.
+#
+# step03_schema.py combines this file with Step 1 (catalog) and Step 2
+# (profile) into catalog/schema.json. Edit this file, then re-run:
+#   python step03_schema.py
+#
+# Tiers:
+#   core      the main business tables; the AI looks here first
+#   support   lists, codes and details the core tables point to
+#   archive   everything else that may hold business data: tables not described
+#             by hand yet, tables empty in this database, and views. The AI sees
+#             them but uses them only when core and support don't fit.
+#   answer_key  bot-built report tables (e.g. the BDR-style billing dashboard).
+#             NOT shown to the AI: the agent answers from the original tables.
+#             We use them only to check our answers during the POC.
+#   (tables listed under leave_out, and backup/copy/temp tables, are never shown
+#    to the AI)
+#
+# This is a staging copy: the tables and columns are the same as production,
+# but the data is older and thinner. So nothing here is judged by dates or by
+# how full a table is; an empty table or column may be full in production.
+
+business: >
+  A medical billing and lien-collection company working for medical providers
+  (its clients) in California workers' compensation. A provider orders studies
+  (services such as an MRI or nerve test) for an injured worker (the patient)
+  who has a workers' comp case. Each study is billed to the employer's insurance
+  company, line by line with CPT codes. Payments come back from insurers.
+  Collectors chase what is still outstanding: follow-ups, appeals, settlement
+  offers, liens, DOR filings and court hearings at the WCAB (tracked through
+  the state's EAMS/EDEX system).
+
+abbreviations:
+  ADJ number: the WCAB court case number of a workers' comp case (e.g. ADJ1234567)
+  AOE/COE: arising out of employment / course of employment (whether the injury is work-related)
+  BDE level: "a collector's level or grade (check: exact meaning)"
+  C&R / CNR: Compromise and Release, a way a workers' comp case is settled
+  CPT code: the standard code for a medical service, used on every bill line
+  DOR: Declaration of Readiness to Proceed, a filing that asks the court for a hearing on a lien
+  DOS: date of service, the day the patient received the service
+  EAMS: the California workers' comp court's case system
+  EDEX: the EAMS data exchange, which sends case events and hearings about our cases
+  EDI: sending bills and receiving payments electronically, instead of on paper
+  EOR: Explanation of Review, the insurer's reply to a bill saying what it pays and why
+  HCFA 1500: the standard paper claim form for medical bills
+  ICD code: a diagnosis code
+  ICN/DCN: the insurer's control number for a received bill
+  Lien: a provider's legal claim for payment, filed on the patient's court case
+  MRN: medical record number, the patient's number at the provider
+  NPI: national provider identifier
+  NSP: "check: meaning (a separate follow-up workflow)"
+  OMFS: Official Medical Fee Schedule, the California maximum allowed amount for a service
+  PTP: primary treating physician
+  SB1160: a California law requiring lien declarations, tracked per case
+  SBR: second bill review, an appeal of how a bill was paid
+  Study: one ordered medical service for a patient (e.g. an MRI); the unit that gets billed
+  WCAB: Workers' Compensation Appeals Board, the court for workers' comp cases
+
+# Columns that mean the same in every table. Names are matched ignoring case.
+common_columns:
+  patientregid: The patient (PATIENT).
+  businessregid: The provider, our client, who gave the service (BUSINESSINFO).
+  caseid: The patient's workers' comp case (CASEINFO).
+  study_id: The study, one ordered service such as an MRI (STUDY_TO_BE_REQUESTED).
+  studyid: The study, one ordered service such as an MRI (STUDY_TO_BE_REQUESTED).
+  billid: The bill (BILL).
+  billcptcodeid: The bill line (BILLCPTCODE).
+  appointmenttypeid: The type of study or service (APPOINTMENTTYPE).
+  collectorregid: The collector, a staff user, working the account (BUSINESSUSER).
+  casetypeid: The type of case (CASETYPE).
+  serviceid: The service from the provider's price list, with its CPT code (BUSINESSSERVICE).
+  insurance_lookupid: The insurance company office (INSURANCECOMPANYLOOKUP2).
+  insurance_company_id: The insurance company (INSURANCE_COMPANY).
+  employer_lookupid: The employer (EMPLOYERLOOKUPTABLE).
+  adjnumber: The WCAB court case number (ADJ number).
+  eams_adj_case_number: The WCAB court case number (ADJ number).
+  mrn: Medical record number, the patient's number at the provider.
+  dateofservice: Date of service (DOS), the day the patient received the service.
+  createdby: The staff user who added the row.
+  created_by: The staff user who added the row.
+  createdon: When the row was added.
+  created_on: When the row was added.
+  lastupdatedby: The staff user who last changed the row.
+  lastupdatedon: When the row was last changed.
+
+topics:
+  patients_cases: Patients, their workers' comp cases, injuries, employers, insurers and attorneys
+  studies: Studies (ordered services) and their status history
+  billing: Bills, bill lines with CPT codes, diagnoses, fee-schedule amounts
+  payments: Payments received, checks, and collector credit
+  collections: Collector work on accounts, actions taken, follow-ups, assignments, verification
+  appeals: Appeals and second bill reviews of underpaid bills
+  liens_court: Liens, DOR filings, SB1160 declarations, court events and hearings
+  settlements: Settlement offers and their review
+  documents: Patient documents, document details and faxes
+  edi: Electronic claims sent to insurers and electronic payment files received
+  providers_org: Providers (our clients), facilities, physicians, portfolio owners, staff users
+  lookups: Code lists and names for IDs used elsewhere
+  other: Not sorted into a topic yet
+
+tables:
+
+  # ---------------------------------------------------------------- core
+
+  dbo.PATIENT:
+    tier: core
+    topic: patients_cases
+    about: Every patient (injured worker) of every provider.
+    row: one patient at one provider
+    columns:
+      PATIENTREGID: The patient's ID, used everywhere else.
+      External_MRN: The patient's medical record number in the provider's own system.
+      COLLECTOR: "The collector assigned to the patient (check: user ID or name)."
+      VERIFICATION_STATUS: Whether the patient's case details were verified (VERIFICATION_STATUS).
+
+  dbo.CASEINFO:
+    tier: core
+    topic: patients_cases
+    about: The workers' comp case of a patient at a provider, with its court number, lien and collection status.
+    row: one case
+    columns:
+      WCABNUMBER: The WCAB court case number as first entered (see ADJNUMBER).
+      WCABVENUEID: The WCAB court office handling the case (WCABVENUES).
+      ADJNUMBER: The WCAB court case number (ADJ number).
+      PTP: "The primary treating physician (check: an ID; which table?)"
+      ATTORNEY: "The applicant's attorney (check: an ID; which table?)"
+      ATTORNEY_BUSINESSREGID: "The applicant's attorney (check: which table)."
+      LIEN: "The lien amount on the case (check: a decimal number, so an amount)."
+      LienFiled: Whether a lien was filed in court for this case.
+      LienFileDate: When the lien was filed.
+      LienActivated: Whether the filed lien was activated (fee paid).
+      LienActivatedDate: When the lien was activated.
+      ActivationFee: The lien activation fee paid.
+      SETTLEMENT: "A settlement amount on the case (check: agreed or offered?)"
+      COLLECTION: "An amount collected on the case (check)."
+      AMOUNT_OF_CNR: The Compromise and Release (C&R) settlement amount of the case.
+      CaseStatus: "The status of the case (check: codes)."
+      CollectionsStatus: "The collection status of the case (check: codes)."
+      INACTIVE: Whether the case is inactive.
+      COLLECTORREGID: The collector assigned to the case.
+      ASSIGNEDON: When the case was assigned to the collector.
+      ClientCaseID: The provider's own case number.
+      ValidityID: Whether the case is valid for collection (Validity_Dropdown).
+      Invalid_ReasonID: Why the case was marked invalid.
+      GradeID: "The case's grade (check: meaning)."
+
+  dbo.INJURY:
+    tier: core
+    topic: patients_cases
+    about: The injury behind a case, with the injury dates and a questionnaire about it.
+    row: one injury of one case
+    columns:
+      DATE_OF_INJURY_START: Date of injury (or the start of a continuous injury period).
+      DATE_OF_INJURY_END: End of a continuous injury period.
+      STATE: The state where the injury happened.
+
+  dbo.INSURANCE:
+    tier: core
+    topic: patients_cases
+    about: The insurance claim behind a patient's case, with the insurer, claim number and adjuster.
+    row: one insurance claim of one patient
+    columns:
+      CLAIM_NUMBER: The insurer's claim number.
+      ADJUSTER_FIRST_NAME: The insurance adjuster handling the claim.
+      ADJUSTER_LAST_NAME: The insurance adjuster handling the claim.
+      IsPrimary: Whether this is the patient's primary insurance.
+      Insurance_type_ID: Type of insurance (Insurance_type).
+      MULTI_INSURANCE_SEQUENCE_ID: Order when a patient has more than one insurer (MULTI_INSURANCE_SEQUENCE).
+      ASSIGN_DATE: When this insurance was assigned to the patient.
+    check: INSURANCE has no CASEID; it links to the patient only. Confirm how to pick the insurer of a case.
+
+  dbo.STUDY_TO_BE_REQUESTED:
+    tier: core
+    topic: studies
+    about: Every study (ordered service, such as an MRI) for a patient's case. The unit that gets billed.
+    row: one study
+    columns:
+      STUDY_ID: The study's ID; bills point to it.
+      STUDY_DATE: "The date of the study (check: same as the bill's date of service)."
+      STATUS: The study's current status (STATUS).
+      STATUS_CHANGED_ON: When the status last changed.
+      AUTH_BY: Who authorised the study (AUTHORIZEDBY_DROPDOWN).
+      MARKETER_ID: The marketer who brought the referral (MARKETER).
+      PORTFOLIO_ID: The portfolio the study's account belongs to (OWNER_PORTFOLIO).
+      INVOICE_ID: The invoice the study is on (check).
+      INACTIVE: Whether the study is inactive.
+      EDIFlag: Whether the study is billed electronically.
+      EdiStatus_ID: The electronic billing status (EDI_Status).
+
+  dbo.HISTORY_STUDY_STATUS:
+    tier: core
+    topic: studies
+    about: Every change of a study's status, with old and new status.
+    row: one status change of one study
+    columns:
+      CURRENT_STATUS: "The status before the change (check: codes in STATUS)."
+      NEXT_STATUS: The status after the change.
+      CHANGED_ON: When the status changed.
+      CHANGED_BY: The staff user who changed it.
+
+  dbo.BILL:
+    tier: core
+    topic: billing
+    about: Every bill sent for a study. The amount billed is here; the lines (CPT codes) are in BILLCPTCODE.
+    row: one bill for one study
+    columns:
+      AMOUNTBILLED: The total amount billed, in dollars.
+      DATEOFSERVICE: Date of service (DOS).
+      BILLDATE: The date the bill was sent.
+      APPOINTMENTTYPE: The type of study or service (APPOINTMENTTYPE).
+      FACILITYID: The facility where the service was given (BUSINESSFACILITY).
+      PHYSICIANID: The physician who gave the service (PHYSICIAN).
+      BillByEDI: Whether the bill was sent electronically.
+      BillByEDIDate: When the bill was sent electronically.
+      BillByEDIStatus: The status of the electronic bill.
+      Submission_Type: "How the bill was submitted (check: codes)."
+    check: CPTCODE and MODIFIER here are always empty; use BILLCPTCODE and BUSINESSSERVICE.
+
+  dbo.BILLCPTCODE:
+    tier: core
+    topic: billing
+    about: The lines of every bill. Each line is one service (CPT code) with its charge.
+    row: one line of one bill
+    columns:
+      CHARGES: The amount charged for this line, in dollars.
+      UNITS: How many units of the service were billed.
+      SERVICEID: The service billed; its CPT code is BUSINESSSERVICE.CPTCode.
+    check: Is BILL.AMOUNTBILLED always the sum of its lines' CHARGES?
+
+  dbo.BILLICDCODES:
+    tier: core
+    topic: billing
+    about: The diagnosis codes (ICD) on every bill.
+    row: one diagnosis code on one bill
+    columns:
+      ICDCODEID: The diagnosis code (BUSINESSICDCODE).
+
+  dbo.BILLCPTCODE_OMFS:
+    tier: core
+    topic: billing
+    about: The Official Medical Fee Schedule (OMFS) allowed amount worked out for each bill line.
+    row: one bill line's fee-schedule amount
+    columns:
+      OMFS_Amount: The maximum amount the fee schedule allows for the line, in dollars.
+      Omfs_code: The fee-schedule code used.
+      ProcessedOn: When the amount was worked out.
+
+  dbo.PAYMENT:
+    tier: core
+    topic: payments
+    about: Every payment (or reduction) posted against a bill line.
+    row: one payment on one bill line
+    columns:
+      PAYMENT: The amount paid, in dollars.
+      PAYMENTDATE: The date of the payment.
+      DEPOSITDATE: The date the check was deposited.
+      CHECKNUMBER: The number of the check that paid it.
+      CHECKAMOUNT: The total amount of that check (it may cover many bill lines).
+      PAYMENTTYPEID: "The type of payment (check: there is no lookup table for it in this database)."
+      SEQUENCE: Order of payments on the same bill line.
+      FOR_SETTLEMENT: Whether the payment came from a settlement.
+      FOR_APPEAL: Whether the payment came from an appeal.
+      For_Advance: Whether the payment is an advance (check).
+      For_InHouseSettlement: Whether it came from a settlement made by our team.
+      For_BoardSettlement: Whether it came from a settlement at the WCAB court.
+      PPOReduction: A PPO-contract reduction rather than money received (check).
+      OtherReduction: Another reduction rather than money received (check).
+      For_Re_Billing: Whether the payment is linked to a re-bill.
+      CHECKCOPYID: The scanned copy of the check (CHECK_DOCUMENTS).
+    check: Do reduction rows count as paid? This decides "paid" and "outstanding" in Step 5.
+
+  dbo.COLLECTION:
+    tier: core
+    topic: payments
+    about: Credit to a collector for money collected on a case.
+    row: one collected amount credited to one collector
+    columns:
+      COLLECTOR: "The collector credited (check: user ID or name)."
+      AMOUNT: The amount credited, in dollars.
+      PAYMENT_DATE: The date of the payment.
+      IS_SETTLEMENT: Whether it came from a settlement.
+      IS_APPEAL: Whether it came from an appeal.
+      PaymentID: The payment it relates to (PAYMENT).
+      POSTED_ON: When it was posted.
+
+  dbo.ACTIONTAKEN:
+    tier: core
+    topic: collections
+    about: Every action a collector took on an account, such as a call, an offer or a settlement.
+    row: one action on one account
+    columns:
+      ACTION: What was done (ACTIONSTATUS).
+      ACTIONDATE: When it was done.
+      STATUS: The account's file status after the action (check).
+      NOTES: The collector's free-text notes (may contain personal details).
+      SETTLEDAMOUNT: The amount settled, if the action was a settlement.
+      SETTLEDPERC: The settled amount as a percentage of the bill.
+      OUTSTANDING: The amount outstanding at the time.
+      FAXSENT: Whether a fax was sent.
+
+  dbo.FOLLOWUP_SCHEDULES_SET:
+    tier: core
+    topic: collections
+    about: Follow-ups scheduled after a collector's action.
+    row: one scheduled follow-up
+    columns:
+      FOLLOWUPDATE: When the follow-up is due.
+      ACTIONTAKENID: The action that created it (ACTIONTAKEN).
+      MRNLIST: The patients' MRNs it covers (a list in one field).
+      STATUS: "Whether the follow-up is open or done (check: codes)."
+
+  dbo.COLLECTORCASE:
+    tier: core
+    topic: collections
+    about: The history of which collector was assigned to which case.
+    row: one assignment of a case to a collector
+    columns:
+      ASSIGNDATE: When the case was assigned.
+
+  dbo.VERIFICATION:
+    tier: core
+    topic: collections
+    about: Checks that a patient's case details (employer, insurer, attorney, court) are correct.
+    row: one verification of one patient
+    columns:
+      VERIFICATION_DATE: When it was verified.
+      VERIFICATION_MODE: How it was verified (VERIFICATION_MODE).
+      VERIFICATION_STATUS: The result (VERIFICATION_STATUS).
+      IS_EMPLOYER: Whether the employer was verified.
+      IS_INSURANCE: Whether the insurer was verified.
+      IS_APPLICANT_ATTORNEY: Whether the applicant's attorney was verified.
+      IS_EDEX: Whether it was verified against EDEX court data.
+
+  dbo.AutoAppeal:
+    tier: core
+    topic: appeals
+    about: Appeals of underpaid or denied bills, created automatically from the insurer's reply (EOR).
+    row: one appeal of one study's bill
+    columns:
+      EORReceivedDate: When the insurer's explanation of review arrived.
+      Status: "The appeal's status (check: codes)."
+      ApprovalDate: When the appeal was approved to send.
+      SentDate: When the appeal was sent.
+      IsEDIAppeal: Whether it was sent electronically.
+
+  dbo.AutoAppealAdj:
+    tier: core
+    topic: appeals
+    about: The insurer's adjustment reasons on each appealed line (why it paid less).
+    row: one adjustment reason on one line of one appeal
+    columns:
+      AdjustmentReasonCode: Why the insurer reduced the line (AdjustmentReasonCodes).
+      AdjustmentGroupCode: The group of the reason, e.g. contractual or patient responsibility.
+
+  dbo.DOR_Case_Information:
+    tier: core
+    topic: liens_court
+    about: DOR (Declaration of Readiness) requests for a case, with lien filing details.
+    row: one DOR request for one case
+    columns:
+      DOR_Status_id: The DOR's status (DOR_Status).
+      coverage_board_id: The board or fund covering the case (DOR_Coverage_Board).
+      Request_type: "The type of request (check: codes)."
+
+  dbo.DOR_case_lien_additional_information:
+    tier: core
+    topic: liens_court
+    about: Validity checks done on a case before a DOR is filed (lien, insurance, settlement and so on).
+    row: one set of checks for one case
+
+  dbo.DOR_Review_Information:
+    tier: core
+    topic: liens_court
+    about: Reviews of a case before a DOR is filed, one row per review step.
+    row: one review step of one case
+    columns:
+      Review_Type_Id: The type of review (DOR_Review_Type).
+      Review_Status_Id: The review's result (DOR_Review_Status).
+      review_depart_id: The team that did the review (DOR_Review_Depart).
+      Review_Detail: Free-text notes of the review.
+
+  dbo.SB1160_INFO_MASTER:
+    tier: core
+    topic: liens_court
+    about: "The SB1160 lien declaration of each case: review status and whether it was filed."
+    row: one case's SB1160 declaration
+    columns:
+      DECLARATION_FILED: Whether the declaration was filed.
+      FILEDDATE: When it was filed.
+      SB1160_REVIEW_STATUS_ID: "The review status (check: lookup table)."
+
+  dbo.EDEX_CASE_SIGNIFICANT_EVENTS:
+    tier: core
+    topic: liens_court
+    about: Events on the court case received from EDEX (hearings set, orders issued, case closed and so on).
+    row: one court event of one case
+    columns:
+      SIGNIFICANT_EVENT_CODE: The type of event.
+      SIGNIFICANT_EVENT_DATE: When it happened.
+      DESCRIPTION: What happened, in words.
+
+  dbo.EDEX_HEARING_NOTIFICATIONS:
+    tier: core
+    topic: liens_court
+    about: Court hearings set on a case, received from EDEX.
+    row: one hearing of one case
+    columns:
+      HEARING_DATE: The date of the hearing.
+      OFFICE: The court office.
+      DESCRIPTION: The type of hearing.
+
+  settle.SettlementOffer:
+    tier: core
+    topic: settlements
+    about: Settlement offers agreed with insurers to close an account, with amounts and review steps.
+    row: one settlement offer for one case
+    columns:
+      Total_Billed: The total billed on the account at the time.
+      Total_Paid: The total paid at the time.
+      Total_OutStanding: The total outstanding at the time.
+      Settlement_Amount: The amount agreed.
+      Settlement_Percentage: The amount agreed as a percentage of the outstanding.
+      Settlement_Date: When it was agreed.
+      Settlement_Status: Where the offer is in the review process.
+      Settled_With: Who it was settled with.
+      Settled_Via: How it was settled (phone, email…).
+      CollectorId: The collector who made the offer (settle.Users).
+      MRN: The patient's medical record number.
+      ProviderId: The provider (settle.Providers; not BUSINESSINFO).
+    check: "Which is the official record of a settlement: this table, ACTIONTAKEN.SETTLEDAMOUNT, CASEINFO.SETTLEMENT or PAYMENT.FOR_SETTLEMENT?"
+
+  dbo.PATIENT_DOCUMENTS:
+    tier: core
+    topic: documents
+    about: Every document uploaded for a patient (bills, reports, insurer replies, court papers).
+    row: one document
+    columns:
+      DOCUMENT_TYPE_CODE: The type of document (DOCUMENT_TYPE).
+      FILENAME: The file name.
+      UPLOADED_ON: When it was uploaded.
+      ISSUED_DATE: The date printed on the document.
+      PRESCRIPTION_REQUEST_ID: The prescription/referral it came with (PRESCRIPTION_REQUEST).
+
+  dbo.DOCUMENT_DETAILS:
+    tier: core
+    topic: documents
+    about: Details read from a document, such as the amount on an insurer's reply or a hearing date.
+    row: one set of details from one document
+    columns:
+      DOCUMENT_TYPE_ID: The type of document (DOCUMENT_TYPE).
+      DOCUMENT_STATUS: The document's status.
+      ISSUE_DATE: The date of the document.
+      AMOUNT: The amount on the document (for example, what the insurer says it paid).
+      HEARING_DATE: The hearing date on a court notice.
+      RECEIVED_FROM: Who sent it.
+
+  # ---------------------------------------------------------------- snapshots
+
+  dbo.billingdashboard_offlinedata:
+    tier: answer_key
+    topic: billing
+    about: Pre-calculated billing dashboard. One row per bill line, with the insurer, employer, statuses, total paid and outstanding already worked out.
+    row: one bill line
+    columns:
+      TotalPAID: Total paid on the line, already summed from PAYMENT.
+      TotalOUTSTANDING: What is still owed on the line.
+    check: Do its totals match the original tables? (We check this ourselves with counts.)
+
+  dbo.BillingDashboardSummary_PatientLevel:
+    tier: answer_key
+    topic: billing
+    about: Pre-calculated billing dashboard, one row per study, with paid and outstanding.
+    row: one study
+
+  dbo.BillingDashboard_AgingSummary:
+    tier: answer_key
+    topic: billing
+    about: Pre-calculated aging of outstanding amounts (1-30, 31-60, 61-90, 91-180, 180+ days) per study.
+    row: one study in one category, with outstanding by age
+    columns:
+      JobRunDate: When the summary was built.
+
+  dbo.FileStatusOfflineData:
+    tier: answer_key
+    topic: collections
+    about: Pre-calculated file status of each case, for dashboards.
+    row: one case's file status at build time
+
+  # ---------------------------------------------------------------- support: patients and cases
+
+  dbo.CASEINFO_ADJNUMBERS:
+    tier: support
+    topic: patients_cases
+    about: "Extra court case numbers (ADJ numbers) of a case, when it has more than one."
+    row: "one extra ADJ number of a case"
+  dbo.EMPLOYER:
+    tier: support
+    topic: patients_cases
+    about: "The employer of a patient at the time of injury."
+    row: "one employer of one patient"
+  dbo.EMPLOYERLOOKUPTABLE:
+    tier: support
+    topic: patients_cases
+    about: "The list of employers with their addresses."
+    row: "one employer"
+  dbo.INSURANCE_ADDITIONAL_INFORMATION:
+    tier: support
+    topic: patients_cases
+    about: "The adjuster's supervisor and the insurer's lien unit for a patient's claim."
+    row: "one patient's extra insurer contacts"
+  dbo.DEFENSEATTORNEY:
+    tier: support
+    topic: patients_cases
+    about: "The defense attorney (for the insurer) on a patient's case."
+    row: "one defense attorney of one patient"
+  dbo.ATTORNEYINFORMATIONLOOKUP:
+    tier: support
+    topic: patients_cases
+    about: "The list of attorneys and law firms with addresses."
+    row: "one attorney"
+  dbo.CUSTOMER_Firm_Information:
+    tier: support
+    topic: patients_cases
+    about: "A firm linked to a patient's case."
+    row: "one firm for one case"
+    check: "Which firm is this (applicant attorney? lien buyer?)"
+  dbo.Viewcase_AssignmentInfo:
+    tier: support
+    topic: patients_cases
+    about: "Whether a case's account was assigned (sold or transferred) to another party, and if it was filed with the court."
+    row: "one case's assignment details"
+  dbo.AssigneeInfo:
+    tier: support
+    topic: patients_cases
+    about: "The parties accounts can be assigned to."
+    row: "one assignee"
+  dbo.Edex_Insurance:
+    tier: support
+    topic: liens_court
+    about: "The insurer named on the court case, from EDEX."
+    row: "one insurer party of one court case"
+  dbo.EDEX_Employer:
+    tier: support
+    topic: liens_court
+    about: "The employer named on the court case, from EDEX."
+    row: "one employer party of one court case"
+  dbo.EDEX_LAWFIRM_DEFENDANT:
+    tier: support
+    topic: liens_court
+    about: "The defense law firm named on the court case, from EDEX."
+    row: "one law-firm party of one court case"
+
+  # ---------------------------------------------------------------- support: studies, billing, payments
+
+  dbo.APPOINTMENTTYPE:
+    tier: support
+    topic: studies
+    about: "The types of study or service (e.g. MRI of a knee)."
+    row: "one study type"
+    check: "It has 961K rows; are types repeated per provider?"
+  dbo.BUSINESSSERVICE:
+    tier: support
+    topic: billing
+    about: "The providers' price list. Each service has a CPT code and prices per payer type (workers' comp, personal injury, Medicare, cash)."
+    row: "one service with its CPT code and prices"
+  dbo.SERVICEAPPTTYPE:
+    tier: support
+    topic: billing
+    about: "Which services (CPT codes) belong to which study type."
+    row: "one service in one study type"
+  dbo.BILLCPTCODE_Market_Values:
+    tier: support
+    topic: billing
+    about: "The market value worked out for a bill line."
+    row: "one bill line's market value"
+  dbo.BUSINESSICDCODE:
+    tier: support
+    topic: billing
+    about: "The list of diagnosis (ICD) codes with descriptions."
+    row: "one ICD code"
+  dbo.PREPAYMENTINFO:
+    tier: support
+    topic: payments
+    about: "Payments as entered before being posted, with the collectors credited."
+    row: "one entered payment line"
+    check: "Is this a staging area for PAYMENT? Do its rows also appear in PAYMENT?"
+  dbo.CHECK_DOCUMENTS:
+    tier: support
+    topic: payments
+    about: "Scanned copies of checks received."
+    row: "one scanned check"
+  dbo.BILL_EDI_REQUEST:
+    tier: support
+    topic: edi
+    about: "Requests to bill a study electronically."
+    row: "one request"
+
+  # ---------------------------------------------------------------- support: collections, appeals, liens, settlements
+
+  dbo.ACTIONSTATUS:
+    tier: support
+    topic: collections
+    about: "The list of actions a collector can take, with the file status each one sets."
+    row: "one action type"
+  dbo.ActionValuesLookup:
+    tier: support
+    topic: collections
+    about: "The values an action can have."
+    row: "one action value"
+  dbo.NSP_FOLLOWUP_SCHEDULES_SET:
+    tier: support
+    topic: collections
+    about: "Follow-ups of the NSP workflow."
+    row: "one scheduled follow-up"
+    check: "What is NSP?"
+  dbo.VERIFICATION_DETAIL:
+    tier: support
+    topic: collections
+    about: "Each item checked in a verification."
+    row: "one checked item"
+  dbo.Verifier:
+    tier: support
+    topic: collections
+    about: "Patients assigned to staff for verification."
+    row: "one assignment"
+  dbo.SBR_Information:
+    tier: support
+    topic: appeals
+    about: "Second bill review requests sent for a study."
+    row: "one SBR request"
+  dbo.EDEX_SIGNIFICANT_EVENTS_NOTIFICATIONS:
+    tier: support
+    topic: liens_court
+    about: "Notices of court events received from EDEX, with the judge."
+    row: "one event notice"
+  dbo.Edex_Hearing:
+    tier: support
+    topic: liens_court
+    about: "Court hearings from EDEX (another feed of the same hearings as EDEX_HEARING_NOTIFICATIONS)."
+    row: "one hearing"
+  dbo.Edex_Events_CnR:
+    tier: support
+    topic: liens_court
+    about: "Compromise and Release (settlement) events on court cases, from EDEX."
+    row: "one C&R event"
+  dbo.EDEX_BOARD_LOCATION:
+    tier: support
+    topic: liens_court
+    about: "The court office handling each court case, from EDEX."
+    row: "one court case's office"
+  dbo.LEGAL_FILLING_LOOKUP:
+    tier: support
+    topic: liens_court
+    about: "Legal filings on a case (notices, liens, DOR) and their dates."
+    row: "one case's filings"
+  dbo.NTP_PMR_FILED_MASTER:
+    tier: support
+    topic: liens_court
+    about: "NTP/PMR filings and responses."
+    row: "one filing"
+  dbo.DOR_FILED_MASTER:
+    tier: support
+    topic: liens_court
+    about: "DOR filings made."
+    row: "one DOR filing"
+  settle.RejectionNotes:
+    tier: support
+    topic: settlements
+    about: "Notes written when a settlement offer was rejected in review."
+    row: "one note"
+  settle.Recordings:
+    tier: support
+    topic: settlements
+    about: "Call recordings attached to a settlement offer."
+    row: "one recording"
+  settle.logs:
+    tier: support
+    topic: settlements
+    about: "Status changes of settlement offers."
+    row: "one status change"
+  settle.Users:
+    tier: support
+    topic: settlements
+    about: "Users of the settlement tool (collectors and reviewers)."
+    row: "one user"
+  settle.Providers:
+    tier: support
+    topic: settlements
+    about: "The settlement tool's own provider list."
+    row: "one provider"
+  settle.Hearing_Detail:
+    tier: support
+    topic: settlements
+    about: "Hearings tracked by the settlement team."
+    row: "one hearing"
+  settle.Hearing_Settlement_Detail:
+    tier: support
+    topic: settlements
+    about: "Offers and settlements made at a hearing."
+    row: "one hearing's settlement"
+  settle.Hearing_Documents_Detail:
+    tier: support
+    topic: settlements
+    about: "Documents for a hearing."
+    row: "one document"
+  settle.Operation_Comments_Details:
+    tier: support
+    topic: settlements
+    about: "Operations and litigation comments on a hearing."
+    row: "one comment set"
+
+  # ---------------------------------------------------------------- support: documents
+
+  dbo.DOCUMENT_TYPE:
+    tier: support
+    topic: documents
+    about: "The types of document."
+    row: "one document type"
+  dbo.DOCUMENT_DETAILS_REASONS:
+    tier: support
+    topic: documents
+    about: "Reason codes read from a document (e.g. why an insurer denied)."
+    row: "one reason on one document"
+  dbo.Document_Details_Additional_Fields:
+    tier: support
+    topic: documents
+    about: "Extra fields read from a document (declaration statement codes)."
+    row: "one document's extra fields"
+  dbo.PATIENT_DOCUMENTS_Fax:
+    tier: support
+    topic: documents
+    about: "Documents faxed out, with approval and delivery."
+    row: "one faxed document"
+  dbo.Fax_log:
+    tier: support
+    topic: documents
+    about: "The log of faxes sent."
+    row: "one fax"
+  dbo.PRESCRIPTION_REQUEST:
+    tier: support
+    topic: documents
+    about: "Prescriptions and referrals received for a patient (the request for a study)."
+    row: "one prescription or referral"
+  dbo.PATIENT_DOCUMENTS_DOCTORS:
+    tier: support
+    topic: documents
+    about: "Doctors named on documents."
+    row: "one doctor"
+
+  # ---------------------------------------------------------------- support: EDI
+
+  edi.ClaimTemp:
+    tier: support
+    topic: edi
+    about: "Claims prepared to be sent electronically to insurers (a full copy of the claim form)."
+    row: "one electronic claim"
+  edi.ChargesTemp:
+    tier: support
+    topic: edi
+    about: "The lines (CPT codes and fees) of each electronic claim."
+    row: "one claim line"
+  edi.Batch:
+    tier: support
+    topic: edi
+    about: "Batches of electronic claims sent."
+    row: "one batch"
+  edi.ClaimValidationErrors:
+    tier: support
+    topic: edi
+    about: "Errors found when an electronic claim was checked before sending."
+    row: "one error on one claim"
+  edi.RSP_Check:
+    tier: support
+    topic: edi
+    about: "Electronic payment files (835) received from insurers, one per check."
+    row: "one check"
+  edi.RSP_ClaimAdjustment:
+    tier: support
+    topic: edi
+    about: "Adjustments on claims in electronic payment files."
+    row: "one adjustment"
+  edi.PayerList:
+    tier: support
+    topic: edi
+    about: "Insurers that accept electronic claims, with their payer IDs."
+    row: "one payer"
+  edi.BillingProvider:
+    tier: support
+    topic: edi
+    about: "Providers set up for electronic billing."
+    row: "one billing provider"
+
+  # ---------------------------------------------------------------- support: providers and organisation
+
+  dbo.BUSINESSINFO:
+    tier: support
+    topic: providers_org
+    about: "The providers (our clients) with addresses, tax ID and NPI."
+    row: "one provider"
+  dbo.BUSINESSINFO_ADDITIONAL_DETAILS:
+    tier: support
+    topic: providers_org
+    about: "Whether a provider is open for collections, authorised DOR filing, and so on."
+    row: "one provider's settings"
+  dbo.BusinessInfo_BillingDetails:
+    tier: support
+    topic: providers_org
+    about: "A provider's billing type, service type and group."
+    row: "one provider's billing setup"
+  dbo.BUSINESSFACILITY:
+    tier: support
+    topic: providers_org
+    about: "The providers' facilities (locations where services are given)."
+    row: "one facility"
+  dbo.PHYSICIAN:
+    tier: support
+    topic: providers_org
+    about: "The physicians of each provider."
+    row: "one physician"
+  dbo.DOCTORS:
+    tier: support
+    topic: providers_org
+    about: "A list of doctors (referring or reporting)."
+    row: "one doctor"
+  dbo.BUSINESSUSER:
+    tier: support
+    topic: providers_org
+    about: "Staff users of the system (collectors, managers, provider users)."
+    row: "one user"
+  dbo.DEPARTMENT:
+    tier: support
+    topic: providers_org
+    about: "Departments of staff users."
+    row: "one department"
+  dbo.DEPARTMENT_PROVIDERS:
+    tier: support
+    topic: providers_org
+    about: "Which providers each department handles."
+    row: "one provider in one department"
+  dbo.OWNER:
+    tier: support
+    topic: providers_org
+    about: "Owners of account portfolios (for example, a buyer of receivables)."
+    row: "one owner"
+  dbo.OWNER_PORTFOLIO:
+    tier: support
+    topic: providers_org
+    about: "Portfolios of accounts, each belonging to an owner."
+    row: "one portfolio"
+  dbo.OWNER_SUBORDINATE:
+    tier: support
+    topic: providers_org
+    about: "Sub-entities of a portfolio owner."
+    row: "one sub-entity"
+  dbo.MARKETER:
+    tier: support
+    topic: providers_org
+    about: "Marketers who bring referrals."
+    row: "one marketer"
+  dbo.ProviderGroup:
+    tier: support
+    topic: providers_org
+    about: "Groups of providers."
+    row: "one group"
+  dbo.Provider_Segment:
+    tier: support
+    topic: providers_org
+    about: "Provider segments."
+    row: "one segment"
+  dbo.Provider_lockbox:
+    tier: support
+    topic: providers_org
+    about: "Bank lockboxes where a provider's checks are received."
+    row: "one lockbox"
+  dbo.PROVIDER_LIENCLAIMANT:
+    tier: support
+    topic: providers_org
+    about: "Who files liens for a provider (the lien claimant)."
+    row: "one provider's lien claimant"
+  dbo.Representative:
+    tier: support
+    topic: providers_org
+    about: "Lien representatives who appear for providers."
+    row: "one representative"
+
+  # ---------------------------------------------------------------- support: insurers and lists
+
+  dbo.INSURANCE_COMPANY:
+    tier: support
+    topic: lookups
+    about: "Insurance companies."
+    row: "one company"
+  dbo.INSURANCECOMPANYLOOKUP2:
+    tier: support
+    topic: lookups
+    about: "Insurance company offices with address and payer ID."
+    row: "one office"
+  dbo.INSURANCE_LOCATIONS:
+    tier: support
+    topic: lookups
+    about: "Locations of insurance offices."
+    row: "one location"
+  dbo.INSURANCE_CLEARINGHOUSE:
+    tier: support
+    topic: lookups
+    about: "Clearinghouses used to send electronic claims."
+    row: "one clearinghouse"
+  dbo.INSURANCE_CLEARINGHOUSE_JOINED:
+    tier: support
+    topic: lookups
+    about: "Which clearinghouse and payer ID each insurer uses."
+    row: "one insurer-clearinghouse pair"
+  dbo.Insurance_type:
+    tier: support
+    topic: lookups
+    about: "Types of insurance."
+    row: "one type"
+  dbo.Insurance_Relationship:
+    tier: support
+    topic: lookups
+    about: "The patient's relationship to the insured."
+    row: "one relationship"
+  dbo.MULTI_INSURANCE_SEQUENCE:
+    tier: support
+    topic: lookups
+    about: "Primary, secondary and so on, when a patient has several insurers."
+    row: "one position"
+  dbo.CASETYPE:
+    tier: support
+    topic: lookups
+    about: "Types of case (workers' comp, personal injury\u2026)."
+    row: "one case type"
+  dbo.STATUS:
+    tier: support
+    topic: lookups
+    about: "Study statuses."
+    row: "one status"
+  dbo.FILESTATUS:
+    tier: support
+    topic: lookups
+    about: "File statuses (short list)."
+    row: "one status"
+  dbo.Filestatus_Information:
+    tier: support
+    topic: lookups
+    about: "File statuses per case type."
+    row: "one file status"
+  dbo.AUTHORIZEDBY_DROPDOWN:
+    tier: support
+    topic: lookups
+    about: "Who can authorise a study."
+    row: "one choice"
+  dbo.VERIFICATION_MODE:
+    tier: support
+    topic: lookups
+    about: "Ways a verification is done (phone, EDEX\u2026)."
+    row: "one mode"
+  dbo.VERIFICATION_STATUS:
+    tier: support
+    topic: lookups
+    about: "Results of a verification."
+    row: "one status"
+  dbo.Validity_Dropdown:
+    tier: support
+    topic: lookups
+    about: "Whether a case is valid for collection."
+    row: "one choice"
+  dbo.De_Assignment_Reason_Lookup:
+    tier: support
+    topic: lookups
+    about: "Reasons a case is taken away from a collector."
+    row: "one reason"
+  dbo.REFUNDTYPE:
+    tier: support
+    topic: lookups
+    about: "Types of refund."
+    row: "one type"
+  dbo.Place_of_Service:
+    tier: support
+    topic: lookups
+    about: "Place-of-service codes used on claims."
+    row: "one code"
+  dbo.Language:
+    tier: support
+    topic: lookups
+    about: "Languages (for interpreters)."
+    row: "one language"
+  dbo.BODYPARTS:
+    tier: support
+    topic: lookups
+    about: "Body part codes."
+    row: "one body part"
+  dbo.WCABVENUES:
+    tier: support
+    topic: lookups
+    about: "WCAB court offices."
+    row: "one office"
+  dbo.USSTATES:
+    tier: support
+    topic: lookups
+    about: "US states."
+    row: "one state"
+  dbo.HCFA_QUALIFIER:
+    tier: support
+    topic: lookups
+    about: "Qualifier codes used on the HCFA 1500 claim form."
+    row: "one qualifier"
+  dbo.BUSINESSICDCODECATEGORY:
+    tier: support
+    topic: lookups
+    about: "ICD code versions (ICD-9, ICD-10)."
+    row: "one category"
+  dbo.AdjustmentReasonCodes:
+    tier: support
+    topic: lookups
+    about: "Insurer adjustment reason codes (why a line was paid less)."
+    row: "one code"
+  dbo.AppealObjection:
+    tier: support
+    topic: lookups
+    about: "Objections used in appeals."
+    row: "one objection"
+  dbo.AppealCrossWalk:
+    tier: support
+    topic: lookups
+    about: "Which appeal objection answers which adjustment reason."
+    row: "one pair"
+  dbo.APPEALS_OBJECTION:
+    tier: support
+    topic: lookups
+    about: "Appeal objections with their justification."
+    row: "one objection"
+  dbo.APPEALS_STUDY_MEDICAL_JUSTIFICATION:
+    tier: support
+    topic: lookups
+    about: "Medical justification text per study type for appeals."
+    row: "one study type"
+  dbo.OBJECTIONSPOOL:
+    tier: support
+    topic: lookups
+    about: "Standard objections and rebuttals."
+    row: "one objection"
+  dbo.EDI_Status:
+    tier: support
+    topic: lookups
+    about: "Electronic billing statuses of a study."
+    row: "one status"
+  dbo.EDI_Appointment_Type:
+    tier: support
+    topic: lookups
+    about: "Attachment type code to send with each study type electronically."
+    row: "one study type"
+  dbo.EDI_Appeals_Condition_Codes:
+    tier: support
+    topic: lookups
+    about: "Condition codes used on electronic appeals."
+    row: "one code"
+  dbo.BILL_EDI_REQUEST_TYPE:
+    tier: support
+    topic: lookups
+    about: "Types of electronic billing request."
+    row: "one type"
+  dbo.DOR_Status:
+    tier: support
+    topic: lookups
+    about: "DOR statuses."
+    row: "one status"
+  dbo.DOR_Review_Type:
+    tier: support
+    topic: lookups
+    about: "Types of DOR review."
+    row: "one type"
+  dbo.DOR_Review_Status:
+    tier: support
+    topic: lookups
+    about: "Results of a DOR review."
+    row: "one result"
+  dbo.DOR_Review_Depart:
+    tier: support
+    topic: lookups
+    about: "Teams that do DOR reviews."
+    row: "one team"
+  dbo.DOR_Validity_type:
+    tier: support
+    topic: lookups
+    about: "Kinds of validity checked before a DOR."
+    row: "one kind"
+  dbo.DOR_Coverage_Board:
+    tier: support
+    topic: lookups
+    about: "Boards or funds that cover a case (for example CIGA)."
+    row: "one board"
+  dbo.DOR_Ciga_Insurance:
+    tier: support
+    topic: lookups
+    about: "Insurers covered by CIGA (the fund for insolvent insurers)."
+    row: "one insurer"
+  dbo.lienNotFiled_Reasons:
+    tier: support
+    topic: lookups
+    about: "Reasons a lien was not filed."
+    row: "one reason"
+  dbo.PMR_RESPONSE_LOOKUP:
+    tier: support
+    topic: lookups
+    about: "Responses to PMR filings."
+    row: "one response"
+  dbo.ACTION_ON_RESPONSES_LOOKUP:
+    tier: support
+    topic: lookups
+    about: "Actions taken on responses to filings."
+    row: "one action"
+  dbo.HEARING_TYPE:
+    tier: support
+    topic: lookups
+    about: "Types of court hearing, with EAMS and EDEX codes."
+    row: "one hearing type"
+  dbo.HEARINGTYPE:
+    tier: support
+    topic: lookups
+    about: "Types of court hearing (short list)."
+    row: "one hearing type"
+  dbo.SBR_ServiceType:
+    tier: support
+    topic: lookups
+    about: "Service types for second bill reviews."
+    row: "one type"
+  dbo.sbr_SourceType:
+    tier: support
+    topic: lookups
+    about: "Sources of second bill reviews."
+    row: "one source"
+  dbo.NSP_Status:
+    tier: support
+    topic: lookups
+    about: "NSP workflow statuses."
+    row: "one status"
+  dbo.NSP_Activity:
+    tier: support
+    topic: lookups
+    about: "NSP workflow activities."
+    row: "one activity"
+  EDEX.WCAB_CASE_STATUS:
+    tier: support
+    topic: lookups
+    about: "Court case status codes from EDEX."
+    row: "one code"
+  EDEX.TRANSACTION_TYPE_CODE:
+    tier: support
+    topic: lookups
+    about: "EDEX transaction types."
+    row: "one type"
+  EDEX.OFFICE_LOCATIONS:
+    tier: support
+    topic: lookups
+    about: "Court office codes."
+    row: "one office"
+  EDEX.INJURY_TYPE:
+    tier: support
+    topic: lookups
+    about: "Injury types (specific or continuous)."
+    row: "one type"
+  edi.ClaimAdjustmentGroupCode:
+    tier: support
+    topic: lookups
+    about: "Claim adjustment group codes (standard)."
+    row: "one code"
+  edi.ClaimAdjustmentReasonCode:
+    tier: support
+    topic: lookups
+    about: "Claim adjustment reason codes (standard)."
+    row: "one code"
+  edi.ClaimStatusCategoryCode:
+    tier: support
+    topic: lookups
+    about: "Claim status category codes (standard)."
+    row: "one code"
+  edi.ClaimStatusCode:
+    tier: support
+    topic: lookups
+    about: "Claim status codes (standard)."
+    row: "one code"
+  edi.RemarkCode:
+    tier: support
+    topic: lookups
+    about: "Remittance remark codes (standard)."
+    row: "one code"
+  edi.BillStatusCode:
+    tier: support
+    topic: lookups
+    about: "Electronic bill statuses."
+    row: "one status"
+  edi.ClaimType:
+    tier: support
+    topic: lookups
+    about: "Types of electronic claim."
+    row: "one type"
+  edi.EntityIdentifierCode:
+    tier: support
+    topic: lookups
+    about: "Entity identifier codes (standard)."
+    row: "one code"
+  edi.Status:
+    tier: support
+    topic: lookups
+    about: "Batch statuses."
+    row: "one status"
+  edi.Message:
+    tier: support
+    topic: lookups
+    about: "Validation error messages for electronic claims."
+    row: "one message"
+  edi.MessageType:
+    tier: support
+    topic: lookups
+    about: "Types of validation message."
+    row: "one type"
+  edi.BillingProviderStatus:
+    tier: support
+    topic: lookups
+    about: "Statuses of a billing provider."
+    row: "one status"
+  settle.Disposition:
+    tier: support
+    topic: lookups
+    about: "Outcomes of a hearing."
+    row: "one outcome"
+  settle.Disposition_Documents:
+    tier: support
+    topic: lookups
+    about: "Documents for an outcome."
+    row: "one document type"
+  settle.Hearing_DocumentType:
+    tier: support
+    topic: lookups
+    about: "Types of hearing document."
+    row: "one type"
+  settle.HEARINGTYPE:
+    tier: support
+    topic: lookups
+    about: "Hearing types used by the settlement team."
+    row: "one type"
+  settle.Lien_Rep_Type:
+    tier: support
+    topic: lookups
+    about: "Types of lien representative."
+    row: "one type"
+  settle.Lien_Rep_Location:
+    tier: support
+    topic: lookups
+    about: "Lien representative locations."
+    row: "one location"
+  settle.Venue:
+    tier: support
+    topic: lookups
+    about: "Court venues used by the settlement team."
+    row: "one venue"
+  settle.UserRole:
+    tier: support
+    topic: lookups
+    about: "Roles in the settlement tool."
+    row: "one role"
+
+# Tables moved to the archive tier by hand (they were left out in the first
+# draft). Any other table that is not described above and not left out below
+# also goes to the archive automatically, as do all views.
+archive:
+  - EDEX.HEARING_TYPE
+  - EDEX.BODYPARTS
+  - EDEX.USSTATES
+  - EDEX.WCABVENUES
+  - EDEX.DIR_OFFICES
+  - EDEX.ERROR_CODES
+  - EDEX.INQUIRY_REASON_CODE
+  - settle.CASETYPE
+  - dbo.REPORT_TYPE
+  - dbo.CALL_MODES
+  - dbo.APPOINTMENTTYPE_CONEXEM
+  - dbo.LE_RequestedInfo
+  - dbo.ActiveCollectorsAllLookup
+  - dbo.ActiveCollectorsLookup
+  - dbo.collections_target
+  - dbo.VoiceCallIDs
+  - dbo.GoogleVoiceCallLogs
+  - dbo.SkypeCallLogs
+  - dbo.CALL
+  - dbo.DumpVisit
+  - edc.DumpVisit
+  - dbo.DefenseAttorney_InsuranceJoined
+  - dbo.invoices
+  - dbo.INVOICE_PAYMENT
+  - dbo.INVOICE_STATUS
+  - dbo.OmfsStudies
+  - dbo.QA_Assignment
+  - dbo.QA_IssueDetails
+  - dbo.QA_IssueType
+  - dbo.Edi_Paper_Bill_History
+  - dbo.ZIPCODES
+  - edc.ZipCode
+  - edi.CityZip
+  - edi.State
+  - EAMS.EAMS_ERRORS
+  - EAMS.EAMS_RESPONSE_LEVEL
+  - EAMS.EAMS_STATUS
+  - EAMS.UNSTRUCTURE_FORMS
+  - EAMS.Unstructure_List
+  - EDEX.ADJRequired
+  - dbo.PATIENT_DOCUMENTS_LOG
+  - "edi.PayerList$"
+
+# Tables kept away from the AI, with the reason: they describe how the
+# software runs, or repeat data held elsewhere (a second copy could give wrong
+# totals). Backup, copy, temp and test tables, and log or scratch tables found
+# by name, are left out automatically.
+leave_out:
+  "Screen or dashboard cache with no history":
+    - dbo.AdjusterCentralizeDashboadOfflineData
+    - dbo.AdjusterCentralizeDashboadSettlementOfflineData
+    - dbo.AdjusterDashboadFileStatusOfflineData
+    - dbo.AdjusterDashboadOfflineData
+    - dbo.AdjusterDashboardCurrentMonthPaymentsOffLine
+    - dbo.AdjusterDashboardMonthSettlementOffLine
+    - dbo.AdjusterDashboardSettledAmountOffLine
+    - dbo.ADJUSTERTEMPTABLE
+    - dbo.BillDashboard_Catgory
+    - dbo.FileVarificationOfflineData
+    - dbo.NSPDashboadFileStatusOfflineData
+    - dbo.Categories
+  "Settings, menus, permissions or users of the application":
+    - dbo.ACTIONSTATUS_ROLE
+    - dbo.AppsUnified_Pages
+    - dbo.AppUnified_Lookup
+    - dbo.ControlBasedACL
+    - dbo.CountsJobs
+    - dbo.InActiveProvidersTables
+    - dbo.Medflow_Objects
+    - dbo.MODULE
+    - dbo.PERMISSION
+    - dbo.ROLE
+    - dbo.ROLEPERMISSION
+    - dbo.USERPERMISSION
+    - dbo.USERTYPE
+    - dbo.PORTFOLIOUSER
+    - dbo.ScreenTypes
+    - dbo.SYSTEM_VARIABLES
+    - dbo.sysdiagrams
+    - dbo.DOR_Setting
+    - dbo.BUSINESSINFO_UAN
+    - dbo.EDI_Attachment_TypeOFF
+    - EDEX.MODULE
+    - EDEX.ROLE
+    - EDEX.USERTYPE
+    - EDEX.BASICPRICING
+    - edi.Button
+    - edi.CubeSql
+    - edi.SideMenu
+    - edi.Theme
+    - edi.Title
+    - edi.Permission
+    - edi.RolePermission
+    - edi.UserProfile
+    - edi.Entity
+    - edi.Package
+    - edi.EDIVendor
+    - edi.EDIVendorPayerCrosswalk
+    - settle.MenuItem
+    - settle.DDLDetail
+    - settle.Med_ProviderListing
+  "Who may see which provider (needed later for per-user access, not for answers)":
+    - dbo.PROVIDER_ACL
+  "Holds passwords or server login details":
+    - dbo.RC_Accounts
+    - dbo.RC2_Accounts
+    - dbo.SERVER_INSTANCES
+    - dbo.PASSWORD_RESET
+  "System logs, sessions, jobs and change tracking":
+    - dbo.DDLEvents
+    - dbo.LogInfo
+    - dbo.businessinfo_Log
+    - dbo.UserSession
+    - dbo.SessionsToExpire
+    - dbo.OperationIP_Log
+    - dbo.ReplicatedArticles
+    - dbo.ERROR_MLM
+    - dbo.Jobs_Email_Info
+    - dbo.Jobs_Info
+    - dbo.Jobs_Information
+    - dbo.Jobs_List
+    - dbo.Jobs_User
+    - dbo.Jobs_User_Info
+    - edi.AuditLogin
+    - edi.DDLEvents
+    - edi.Jobs_Email
+    - edi.RequestPool
+    - edi.ObjectionToBill
+    - EAMS.Jobs_Email
+    - EDEX.Jobs_Email
+    - EDEX.INQUIRY_FILES_STATUS
+    - edc.Batch
+    - settle.PBI_Settlement_Processing
+    - settle.PBI_Settlements_LOG
+  "Document storage, syncing or AI document-matching work tables":
+    - dbo.Patient_documents_GoogleD
+    - dbo.PATIENT_DOCUMENTS_GD_DOCSYNC
+    - dbo.Patient_Documents_MRNs
+    - dbo.DOC_DETAIL
+    - dbo.DOC_MASTER
+    - dbo.DOC_REDUNDANT
+    - dbo.UploadedDocuments
+    - dbo.Exhibit_Detail
+    - dbo.Exhibit_list
+  "Spreadsheets imported once":
+    - "dbo.'Pharmacy Serve1r$'"
+    - "dbo.'Pharmacy Server$'"
+    - dbo.KHI$
+    - dbo.File Status
+    - EAMS.5800Liens$
+    - dbo.Edex_mapping_Medflow
+  "Copies of data kept elsewhere":
+    - dbo.HCFA1500
+    - dbo.CollectionsStatus
+    - dbo.CollectionsStatusLookup
+    - dbo.LienInfo
+    - dbo.StudiesProvidedEDEX
+    - dbo.Case_Insurance_Relationship
+  "Report-builder settings (useful later for Step 10, not for answers)":
+    - dbo.Custom_ReportLayoutFields_Mapping
+    - dbo.Custom_ReportLayouts
+    - dbo.Custom_Reports_Column
+    - dbo.Custom_UserReportAccess

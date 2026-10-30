@@ -7,3 +7,7 @@ __pycache__/
 
 # Personal Claude Code settings
 .claude/settings.local.json
+
+# Outputs that describe the organization database: this machine only
+catalog/
+
