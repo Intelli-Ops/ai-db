@@ -1,0 +1,9 @@
+# Secrets: database login and AI key. Never commit.
+.env
+
+# Python
+.venv/
+__pycache__/
+
+# Personal Claude Code settings
+.claude/settings.local.json
